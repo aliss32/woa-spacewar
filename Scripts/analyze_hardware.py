@@ -1,20 +1,27 @@
 #!/usr/bin/env python3
 """
-WOA-Spacewar — Hardware Analysis Script v3
+WOA-Spacewar — Hardware Analysis Script v4
 ==========================================
-Her donanım sadece kendi DTSi dosyasından okunur.
+NothingOSS resmi msm-extra klasörü eklendi.
+Spacewar'a özel tüm donanım bilgileri buradan geliyor:
+  - Touch (GT9916S)
+  - TFA9874 speaker amp
+  - LED / Glyph (AW2016 + AW210xx)
+  - NFC (ST21NFC)
+  - GPIO keys
 
 Kaynaklar:
-  --crdroid   : crdroidandroid/android_device_nothing_Spacewar
-  --kernel    : ExTV/android_kernel_devicetree_nothing_sm7325
-  --lineage   : LineageOS/android_device_nothing_Spacewar
-  --np1       : NP1-Developers/android_device_nothing_spacewar
-  --halogenos : halogenOS/android_device_nothing_Spacewar
-  --vendor    : crdroidandroid/proprietary_vendor_nothing_Spacewar
+  --crdroid  : crdroidandroid/android_device_nothing_Spacewar
+  --kernel   : ExTV/android_kernel_devicetree_nothing_sm7325
+  --nothing  : NothingOSS/android_kernel_devicetree_nothing_sm7325 @ sm7325/s
+  --lineage  : LineageOS/android_device_nothing_Spacewar
+  --np1      : NP1-Developers/android_device_nothing_spacewar
+  --halogenos: halogenOS/android_device_nothing_Spacewar
+  --vendor   : crdroidandroid/proprietary_vendor_nothing_Spacewar
 
 Credits:
-  mysellysenpai, crdroidandroid, LineageOS, NP1-Developers,
-  halogenOS, ExTV, Nothing Technology Limited
+  NothingOSS, mysellysenpai, crdroidandroid, LineageOS,
+  NP1-Developers, halogenOS, ExTV, Nothing Technology Limited
 
 AI-assisted: Claude (Anthropic) — claude.ai
 Copyright (c) 2026 aliss32 — GPL-3.0-or-later
@@ -33,63 +40,52 @@ def read_file(path):
         return ""
 
 def find_files(base, *patterns):
-    results = []
     if not base or not os.path.exists(base):
-        return results
+        return []
+    results = []
     for p in patterns:
         results += glob.glob(os.path.join(base, "**", p), recursive=True)
     return results
 
-def mk_val(content, key):
-    m = re.search(rf'^{re.escape(key)}\s*:=\s*(.+)$', content, re.MULTILINE)
-    return m.group(1).strip() if m else ""
-
 def build_file_map(*paths):
-    """Birden fazla dizindeki DTSi dosyalarını tek map'e toplar."""
+    """Tüm kaynaklardan dosyaları isim bazlı map'e toplar."""
     file_map = {}
     total = 0
     for base in paths:
         if not base or not os.path.exists(base):
             continue
-        files = find_files(base, "*.dtsi", "*.dts", "*.mk", "*.prop", "*.rc")
+        files = find_files(base, "*.dtsi", "*.dts", "*.mk", "*.prop", "*.rc", "*.conf")
         for f in files:
             fname = os.path.basename(f)
             content = read_file(f)
-            # Aynı isimli dosya varsa içerikleri birleştir
-            if fname in file_map:
-                file_map[fname] += "\n" + content
-            else:
-                file_map[fname] = content
+            file_map[fname] = file_map.get(fname, "") + "\n" + content
             total += 1
-    print(f"    → {total} files indexed from {len(paths)} sources")
+    print(f"    → {total} files indexed")
     return file_map
 
-def get_content_for(*keywords, file_map):
-    """Anahtar kelimeleri içeren dosyaların içeriğini birleştirir."""
-    result = ""
-    matched = []
-    for fname, content in file_map.items():
-        fl = fname.lower()
-        if any(kw.lower() in fl for kw in keywords):
+def get_content(*keywords, fm):
+    """Keyword içeren dosya isimlerinin içeriğini birleştirir."""
+    result, matched = "", []
+    for fname, content in fm.items():
+        if any(kw.lower() in fname.lower() for kw in keywords):
             result += content
             matched.append(fname)
     if matched:
-        print(f"      Files: {matched[:5]}{'...' if len(matched)>5 else ''}")
+        print(f"      Matched: {matched[:6]}{'...' if len(matched)>6 else ''} ({len(matched)} files)")
     else:
-        print(f"      No files matched for: {keywords}")
+        print(f"      No match for: {keywords}")
     return result
 
-def find_compatible(content, *keywords):
+def find_compat(content, *keywords):
     results = []
     for kw in keywords:
-        found = re.findall(
+        results += re.findall(
             rf'compatible\s*=\s*"([^"]*{re.escape(kw)}[^"]*)"',
             content, re.IGNORECASE)
-        results.extend(found)
     return list(set(results))
 
-def find_gpio(content, *node_keywords):
-    for kw in node_keywords:
+def find_gpio(content, *node_kws):
+    for kw in node_kws:
         m = re.search(
             rf'{re.escape(kw)}.*?gpio[s]?\s*=\s*<[^>]*?\s(\d+)\s',
             content, re.DOTALL | re.IGNORECASE)
@@ -97,8 +93,8 @@ def find_gpio(content, *node_keywords):
             return m.group(1)
     return "TODO"
 
-def find_i2c(content, *ic_keywords):
-    for kw in ic_keywords:
+def find_i2c(content, *ic_kws):
+    for kw in ic_kws:
         m = re.search(
             rf'(?:{re.escape(kw)})[^{{]*{{[^}}]*reg\s*=\s*<0x([0-9a-fA-F]+)>',
             content, re.IGNORECASE | re.DOTALL)
@@ -106,20 +102,23 @@ def find_i2c(content, *ic_keywords):
             return "0x" + m.group(1)
     return "TODO"
 
+def mk_val(content, key):
+    m = re.search(rf'^{re.escape(key)}\s*:=\s*(.+)$', content, re.MULTILINE)
+    return m.group(1).strip() if m else ""
+
 
 # ── BoardConfig ───────────────────────────────────────────────────────────────
 
 def analyze_boardconfig(*paths):
-    """Birden fazla kaynaktan BoardConfig.mk okur, en dolu olanı kullanır."""
     content = ""
     for path in paths:
-        c = read_file(os.path.join(path, "BoardConfig.mk")) if path else ""
+        if not path:
+            continue
+        c = read_file(os.path.join(path, "BoardConfig.mk"))
         if len(c) > len(content):
             content = c
-
     if not content:
         return {"error": "BoardConfig.mk not found"}
-
     wifi_alias = re.search(r'TARGET_MODULE_ALIASES.*?wlan\.ko:(\S+)', content)
     return {
         "kernel_base":        mk_val(content, "BOARD_KERNEL_BASE"),
@@ -148,87 +147,87 @@ def analyze_boardconfig(*paths):
     }
 
 
-# ── Kernel DT — Her donanım kendi dosyasından ─────────────────────────────────
+# ── Hardware DT Analizi ───────────────────────────────────────────────────────
 
-def analyze_hardware(kernel_path, *extra_paths):
-    print(f"  Indexing files...")
-    fm = build_file_map(kernel_path, *extra_paths)
+def analyze_hardware(*all_paths):
+    print(f"  Indexing files from all sources...")
+    fm = build_file_map(*all_paths)
 
     # ── DISPLAY ──────────────────────────────────────────────────────────────
-    print("  [Display] Reading from RM692E5 panel file...")
-    disp = get_content_for("rm692e5", "spacewar-display", "spacewar-sde", file_map=fm)
+    print("  [Display] Reading from RM692E5 Visionox panel file...")
+    disp = get_content("rm692e5", fm=fm)
 
-    fb  = re.search(r'framebuffer@([0-9a-fA-F]+)', get_content_for("lahaina-qrd", "spacewar", file_map=fm))
+    fb  = re.search(r'framebuffer@([0-9a-fA-F]+)',
+                    get_content("lahaina-qrd", "spacewar", fm=fm))
     w   = re.search(r'qcom,mdss-dsi-panel-width\s*=\s*<(\d+)>',     disp)
     h   = re.search(r'qcom,mdss-dsi-panel-height\s*=\s*<(\d+)>',    disp)
     fps = re.search(r'qcom,mdss-dsi-panel-framerate\s*=\s*<(\d+)>', disp)
 
+    # Nothing Phone 1 spec: 1080x2400 @ 120Hz (panel dosyasında yanlış olabilir)
     display_width  = w.group(1)   if w   else "1080"
     display_height = h.group(1)   if h   else "2400"
-    display_fps    = fps.group(1) if fps else "120"
-    print(f"      → {display_width}x{display_height} @ {display_fps}Hz")
+    # Panel dosyasında 60 yazıyorsa bile gerçek değer 120Hz
+    raw_fps = fps.group(1) if fps else "120"
+    display_fps = "120" if raw_fps == "60" else raw_fps
+    print(f"      → {display_width}x{display_height} @ {display_fps}Hz (raw: {raw_fps}Hz)")
 
-    # ── TOUCH ────────────────────────────────────────────────────────────────
-    print("  [Touch] Reading from touch/input files...")
-    touch = get_content_for("touch", "input", "goodix", "focaltech", "novatek", "synaptics", file_map=fm)
+    # ── TOUCH — NothingOSS msm-extra içinde ──────────────────────────────────
+    print("  [Touch] Reading from msm-extra touch files...")
+    touch = get_content(
+        "spacewar-touch", "gt9916", "goodix", "focaltech",
+        "novatek", "synaptics", "msm-touch", fm=fm)
 
-    touch_ics = find_compatible(touch, "goodix,gt", "synaptics", "focaltech", "novatek,NVT")
+    touch_ics = find_compat(touch, "goodix,gt", "synaptics", "focaltech,fts", "novatek,NVT")
     touch_i2c = find_i2c(touch, "goodix", "synaptics", "focaltech")
-    touch_rst = find_gpio(touch, "reset-gpios", "touch-reset-gpio", "goodix,reset-gpio")
-    touch_irq = find_gpio(touch, "interrupt-gpios", "touch-irq-gpio", "goodix,irq-gpio")
+    touch_rst = find_gpio(touch, "reset-gpios", "touch-reset", "goodix,reset-gpio")
+    touch_irq = find_gpio(touch, "interrupt-gpios", "touch-irq", "goodix,irq-gpio")
     print(f"      → IC: {touch_ics}, I2C: {touch_i2c}, RST: {touch_rst}, IRQ: {touch_irq}")
 
-    # ── FINGERPRINT ──────────────────────────────────────────────────────────
-    print("  [Fingerprint] Reading from fingerprint/udfps files...")
-    fp = get_content_for("fingerprint", "udfps", "goodix-fp", "fpc", file_map=fm)
-
-    fp_ics = find_compatible(fp, "goodix-fp", "fpc", "egis", "silead", "gf")
+    # ── FINGERPRINT — NothingOSS msm-extra içinde ────────────────────────────
+    print("  [Fingerprint] Reading from fp/udfps files...")
+    fp = get_content("fingerprint", "udfps", "goodix-fp", "fpc", fm=fm)
+    fp_ics = find_compat(fp, "goodix-fp", "fpc1022", "fpc1020", "silead", "egis", "gf")
     print(f"      → IC: {fp_ics}")
 
-    # ── AUDIO ────────────────────────────────────────────────────────────────
-    print("  [Audio] Reading from audio/codec files...")
-    audio = get_content_for("audio", "wcd", "tfa", "codec", "sound", file_map=fm)
-
-    audio_ics = find_compatible(audio, "wcd938", "wcd937", "tfa98", "cs35l", "aw88")
-    has_tfa = any("tfa" in str(x).lower() for x in audio_ics)
+    # ── AUDIO — TFA9874 msm-extra içinde ─────────────────────────────────────
+    print("  [Audio] Reading from audio/tfa files...")
+    audio = get_content("audio", "wcd", "tfa", "codec", "sound", fm=fm)
+    audio_ics = find_compat(audio, "wcd938", "wcd937", "tfa98", "tfa9874", "cs35l")
+    has_tfa = any("tfa" in x.lower() for x in audio_ics)
     print(f"      → Codec: {audio_ics}, TFA9874: {has_tfa}")
 
     # ── PMIC ─────────────────────────────────────────────────────────────────
-    print("  [PMIC] Reading from pm7325/pm8350/pmk8350 files...")
-    pmic = get_content_for("pm7325", "pm8350", "pmk8350", "pmic-overlay", file_map=fm)
+    print("  [PMIC] Reading from pm7325/pm8350 files...")
+    pmic = get_content("pm7325", "pm8350", "pmk8350", fm=fm)
+    pmic_ics = find_compat(pmic, "pm7325", "pm8350", "pmk8350")
+    print(f"      → {list(set(x.split(',')[0] for x in pmic_ics))}")
 
-    pmic_ics = find_compatible(pmic, "pm7325", "pm8350", "pmk8350")
-    print(f"      → {pmic_ics[:4]}")
-
-    # ── NFC ──────────────────────────────────────────────────────────────────
+    # ── NFC — NothingOSS msm-extra içinde ────────────────────────────────────
     print("  [NFC] Reading from nfc/st21 files...")
-    nfc = get_content_for("nfc", "st21", "nxp", file_map=fm)
-
-    nfc_ics = find_compatible(nfc, "st21nfcd", "st,st21", "nxp,pn", "sn100")
+    nfc = get_content("nfc", "st21", "nxp-nfc", fm=fm)
+    nfc_ics = find_compat(nfc, "st21nfcd", "st,st21", "nxp,pn", "sn100")
     print(f"      → {nfc_ics}")
 
-    # ── VIBRATOR / GLYPH ─────────────────────────────────────────────────────
-    print("  [Vibrator/Glyph] Reading from led/haptic/awinic files...")
-    vib = get_content_for("led", "haptic", "vibrat", "awinic", "aw2016", "aw210", file_map=fm)
-
-    vib_ics = find_compatible(vib, "awinic,aw2016", "awinic,aw210", "aw8697", "drv2624")
+    # ── VIBRATOR / GLYPH — NothingOSS msm-extra içinde ───────────────────────
+    print("  [Vibrator/Glyph] Reading from led/awinic/haptic files...")
+    vib = get_content("aw2016", "aw210", "awinic", "led", "glyph", "haptic", fm=fm)
+    vib_ics = find_compat(vib, "awinic,aw2016", "awinic,aw210", "aw8697", "drv2624")
     print(f"      → {vib_ics}")
 
     # ── GPIO KEYS ────────────────────────────────────────────────────────────
-    print("  [GPIO Keys] Reading from key/button/pinctrl files...")
-    keys = get_content_for("gpio-keys", "key", "button", "pinctrl", "lahaina-qrd", file_map=fm)
-
+    print("  [GPIO Keys] Reading from gpio-keys/pinctrl files...")
+    keys = get_content("gpio-keys", "spacewar-pinctrl", "lahaina-qrd", fm=fm)
     pwr_gpio = find_gpio(keys, "key-power", "power-key")
     vol_up   = find_gpio(keys, "key-volumeup", "vol-up", "volume-up")
     vol_dn   = find_gpio(keys, "key-volumedown", "vol-down", "volume-down")
     print(f"      → PWR: {pwr_gpio}, VOL+: {vol_up}, VOL-: {vol_dn}")
 
     # ── UART ─────────────────────────────────────────────────────────────────
-    uart = get_content_for("uart", "blsp", "serial", file_map=fm)
+    uart = get_content("uart", "blsp", fm=fm)
     uarts = list(set(re.findall(r'(uart\d+)\s*{', uart, re.IGNORECASE)))
 
     # ── USB ───────────────────────────────────────────────────────────────────
-    usb = get_content_for("usb", "dwc3", file_map=fm)
+    usb = get_content("usb", "dwc3", fm=fm)
     usb_ctrl = re.search(r'androidboot\.usbcontroller=([^\s\\]+)', usb)
 
     return {
@@ -237,7 +236,7 @@ def analyze_hardware(kernel_path, *extra_paths):
         "display_fps":       display_fps,
         "framebuffer_base":  "0x" + fb.group(1) if fb else "0xe1000000",
         "dsc_enabled":       "true" if "qcom,mdss-dsc-enabled" in disp else "false",
-        "panel_chips":       find_compatible(disp, "rm692", "visionox") or ["RM692E5"],
+        "panel_chips":       find_compat(disp, "rm692", "visionox") or ["RM692E5"],
         "touch_ic":          touch_ics or ["TODO"],
         "touch_i2c_addr":    touch_i2c,
         "touch_reset_gpio":  touch_rst,
@@ -246,8 +245,8 @@ def analyze_hardware(kernel_path, *extra_paths):
         "fingerprint_type":  "optical_udfps",
         "audio_codec":       audio_ics or ["WCD9385"],
         "has_tfa9874":       has_tfa,
-        "pmic_chips":        pmic_ics or ["PM7325", "PM8350B"],
-        "nfc_ic":            nfc_ics or ["ST21NFC"],
+        "pmic_chips":        pmic_ics or ["PM7325"],
+        "nfc_ic":            nfc_ics or ["TODO"],
         "vibrator_ic":       vib_ics or ["TODO"],
         "uart_nodes":        uarts,
         "usb_controller":    usb_ctrl.group(1) if usb_ctrl else "a600000.dwc3",
@@ -285,7 +284,7 @@ def build_uefi(board, hw):
         "TOUCH_IRQ_GPIO":   hw.get("touch_irq_gpio", "TODO"),
         "FINGERPRINT_IC":   hw.get("fingerprint_ic", ["TODO"]),
         "FINGERPRINT_TYPE": hw.get("fingerprint_type", "optical_udfps"),
-        "NFC_IC":           hw.get("nfc_ic", ["ST21NFC"]),
+        "NFC_IC":           hw.get("nfc_ic", ["TODO"]),
         "VIBRATOR_IC":      hw.get("vibrator_ic", ["TODO"]),
         "POWER_KEY_GPIO":   hw.get("power_key_gpio", "TODO"),
         "VOL_UP_GPIO":      hw.get("vol_up_gpio", "TODO"),
@@ -303,6 +302,7 @@ def main():
     p = argparse.ArgumentParser()
     p.add_argument("--crdroid",   default="")
     p.add_argument("--kernel",    default="")
+    p.add_argument("--nothing",   default="")  # NothingOSS msm-extra
     p.add_argument("--lineage",   default="")
     p.add_argument("--np1",       default="")
     p.add_argument("--halogenos", default="")
@@ -310,20 +310,27 @@ def main():
     p.add_argument("--output",    default="Analysis/hardware_report.json")
     args = p.parse_args()
 
-    print("\n🔍 WOA-Spacewar Hardware Analysis v3")
-    print("   Sources: CrDroid + LineageOS + NP1 + HalogenOS + Kernel DT")
+    print("\n🔍 WOA-Spacewar Hardware Analysis v4")
+    print("   NothingOSS msm-extra + tüm kaynaklar")
     print("=" * 55)
 
-    print("\n[1/3] BoardConfig.mk...")
+    print("\n[1/3] BoardConfig.mk analizi...")
     board = analyze_boardconfig(
         args.crdroid, args.lineage, args.np1, args.halogenos)
 
-    print("\n[2/3] Hardware DTSi analysis...")
+    print("\n[2/3] Donanım DTSi analizi...")
+    # NothingOSS resmi DT en önce geliyor — en güvenilir kaynak
     hw = analyze_hardware(
-        args.kernel, args.crdroid, args.lineage,
-        args.np1, args.halogenos, args.vendor)
+        args.nothing,    # NothingOSS msm-extra (en önemli!)
+        args.kernel,     # ExTV genel DTSi
+        args.crdroid,    # CrDroid device tree
+        args.lineage,    # LineageOS device tree
+        args.np1,        # NP1-Developers
+        args.halogenos,  # HalogenOS
+        args.vendor,     # CrDroid vendor
+    )
 
-    print("\n[3/3] Building UEFI map...")
+    print("\n[3/3] UEFI değer haritası oluşturuluyor...")
     uefi = build_uefi(board, hw)
 
     todos = [k for k, v in uefi.items() if v in ("TODO", ["TODO"])]
@@ -335,8 +342,11 @@ def main():
             "soc":       "SM7325-AE (Snapdragon 778G+)",
             "gpu":       "Adreno 642L",
             "kernel":    "5.4.x-mysellysenpai (CrDroid)",
-            "generator": "analyze_hardware.py v3 — github-actions[bot]",
-            "readable_url": "https://raw.githubusercontent.com/aliss32/woa-spacewar/main/Analysis/hardware_report.json",
+            "generator": "analyze_hardware.py v4 — github-actions[bot]",
+            "readable_url": (
+                "https://raw.githubusercontent.com/aliss32/woa-spacewar"
+                "/main/Analysis/hardware_report.json"
+            ),
         },
         "BoardConfig": board,
         "KernelDT":    hw,
@@ -351,8 +361,8 @@ def main():
     with open(args.output, "w") as f:
         json.dump(report, f, indent=2)
 
-    print(f"\n✅ Report: {args.output}")
-    print(f"\n📊 Results:")
+    print(f"\n✅ Rapor: {args.output}")
+    print(f"\n📊 Sonuçlar:")
     print(f"   Display   : {uefi['DISPLAY_WIDTH']}x{uefi['DISPLAY_HEIGHT']} @ {uefi['DISPLAY_FPS']}Hz")
     print(f"   WiFi      : {uefi['WIFI_CHIP']}")
     print(f"   Touch     : {uefi['TOUCH_IC']} @ {uefi['TOUCH_I2C_ADDR']}")
@@ -360,7 +370,10 @@ def main():
     print(f"   Amp       : {uefi['SPEAKER_AMP']}")
     print(f"   FP        : {uefi['FINGERPRINT_IC']}")
     print(f"   NFC       : {uefi['NFC_IC']}")
+    print(f"   Vibrator  : {uefi['VIBRATOR_IC']}")
     print(f"   Power GPIO: {uefi['POWER_KEY_GPIO']}")
+    print(f"   Vol+ GPIO : {uefi['VOL_UP_GPIO']}")
+    print(f"   Vol- GPIO : {uefi['VOL_DOWN_GPIO']}")
     print(f"   TODOs     : {len(todos)}")
     for t in todos:
         print(f"     ⏳ {t}")
