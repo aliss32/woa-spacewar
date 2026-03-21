@@ -31,10 +31,26 @@ jobs:
           git clone https://github.com/edk2-porting/edk2-msm.git \
             --recursive --depth=1 edk2-msm
 
+      - name: DEBUG - Show edk2-msm Platform structure
+        run: |
+          echo "=== edk2-msm Platform structure ==="
+          find edk2-msm/Platform -maxdepth 3 -type d | sort
+          echo ""
+          echo "=== Example device (lisa) ==="
+          ls edk2-msm/Platform/Device/lisa/ 2>/dev/null || echo "lisa not found"
+          echo ""
+          echo "=== build.sh usage ==="
+          cat edk2-msm/build.sh | head -50
+
       - name: Copy Spacewar device tree
         run: |
-          cp -r UEFI/Platform/Device/spacewar \
-            edk2-msm/Platform/Device/spacewar
+          # Hedef klasörü oluştur
+          mkdir -p edk2-msm/Platform/Device/spacewar
+          mkdir -p edk2-msm/Platform/Device/spacewar/ACPI
+          # Dosyaları kopyala
+          cp -r UEFI/Platform/Device/spacewar/. edk2-msm/Platform/Device/spacewar/
+          echo "Copied files:"
+          ls -la edk2-msm/Platform/Device/spacewar/
 
       - name: Build UEFI
         run: |
@@ -55,9 +71,9 @@ jobs:
           tag_name: build-${{ github.run_number }}
           name: "Spacewar UEFI Build #${{ github.run_number }}"
           body: |
-            ## WOA-Spacewar UEFI — Auto Build #${{ github.run_number }}
+            ## WOA-Spacewar UEFI Build #${{ github.run_number }}
             **Commit:** ${{ github.sha }}
-            ### Test (safe — nothing written to device)
+            ### Test (safe - nothing written to device)
             ```bash
             fastboot boot boot-spacewar.img
             ```
