@@ -137,6 +137,7 @@ jobs:
           git add Analysis/hardware_report.json
           git diff --staged --quiet || \
             git commit -m "sync: auto-update hardware_report.json [$(date -u +%Y-%m-%d)] [bot]"
+          git pull --rebase origin main
           git push
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
