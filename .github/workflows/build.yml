@@ -35,18 +35,30 @@ jobs:
           cp UEFI/configs/devices/spacewar.conf \
              edk2-msm/configs/devices/spacewar.conf
 
-          # Platform files - Platform/Qualcomm/sm7325/ (lisa ile aynı konum)
-          mkdir -p edk2-msm/Platform/Qualcomm/sm7325/AcpiTables/spacewar
+          # Platform/Nothing/sm7325/
+          mkdir -p edk2-msm/Platform/Nothing/sm7325/AcpiTables/spacewar
+          mkdir -p edk2-msm/Platform/Nothing/sm7325/FdtBlob
 
-          cp UEFI/Platform/Qualcomm/sm7325/spacewar.dsc \
-             edk2-msm/Platform/Qualcomm/sm7325/spacewar.dsc
-          cp UEFI/Platform/Qualcomm/sm7325/spacewar.fdf.inc \
-             edk2-msm/Platform/Qualcomm/sm7325/spacewar.fdf.inc
-          cp UEFI/Platform/Qualcomm/sm7325/AcpiTables/DSDT.asl \
-             edk2-msm/Platform/Qualcomm/sm7325/AcpiTables/spacewar/DSDT.asl
+          cp UEFI/Platform/Nothing/sm7325/spacewar.dsc \
+             edk2-msm/Platform/Nothing/sm7325/spacewar.dsc
+          cp UEFI/Platform/Nothing/sm7325/spacewar.fdf.inc \
+             edk2-msm/Platform/Nothing/sm7325/spacewar.fdf.inc
+          cp UEFI/Platform/Nothing/sm7325/AcpiTables/spacewar/DSDT.asl \
+             edk2-msm/Platform/Nothing/sm7325/AcpiTables/spacewar/DSDT.asl
+
+          # DTB - Xiaomi/sm7325'den kopyala (sm7325 için ortak DTB)
+          cp edk2-msm/Platform/Xiaomi/sm7325/FdtBlob/sm7325-generic-msd.dtb \
+             edk2-msm/Platform/Nothing/sm7325/FdtBlob/sm7325-generic-msd.dtb
 
           echo "=== Kopyalanan dosyalar ==="
-          find edk2-msm/Platform/Qualcomm/sm7325 -name "spacewar*" -o -name "DSDT*" | sort
+          find edk2-msm/Platform/Nothing -type f | sort
+
+      - name: Compile DSDT.asl to DSDT.aml
+        run: |
+          iasl -p edk2-msm/Platform/Nothing/sm7325/AcpiTables/spacewar/DSDT \
+               edk2-msm/Platform/Nothing/sm7325/AcpiTables/spacewar/DSDT.asl
+          echo "=== AcpiTables ==="
+          ls -la edk2-msm/Platform/Nothing/sm7325/AcpiTables/spacewar/
 
       - name: Build UEFI
         run: |
