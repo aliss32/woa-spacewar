@@ -73,6 +73,14 @@ jobs:
             https://github.com/crdroidandroid/proprietary_vendor_nothing_Spacewar.git \
             sources/crdroid_vendor || true
 
+- name: DEBUG - List NothingOSS files
+        run: |
+          echo "=== NothingOSS msm-extra structure ==="
+          find sources/nothing_official_dt/msm-extra -type f -name "*.dtsi" | head -50
+          echo ""
+          echo "=== Total files ==="
+          find sources/nothing_official_dt -type f | wc -l
+
       # ── Analiz ───────────────────────────────────────────────
       - name: Run hardware analysis
         run: |
