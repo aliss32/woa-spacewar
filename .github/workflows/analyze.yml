@@ -23,65 +23,56 @@ jobs:
       - name: Install dependencies
         run: sudo apt-get install -y python3 git
 
-      # ── Kaynak 1: CrDroid device tree ────────────────────────
       - name: Clone CrDroid device tree
         run: |
           git clone --depth=1 -b 14.0 \
             https://github.com/crdroidandroid/android_device_nothing_Spacewar.git \
             sources/crdroid_device
 
-      # ── Kaynak 2: ExTV kernel DT (genel Qualcomm DTSi'ler) ───
       - name: Clone ExTV kernel DT
         run: |
           git clone --depth=1 \
             https://github.com/ExTV/android_kernel_devicetree_nothing_sm7325.git \
             sources/kernel_dt
 
-      # ── Kaynak 3: NothingOSS resmi DT (msm-extra klasörü) ────
-      # Touch, TFA9874, LED/Glyph, GPIO, NFC burada!
-      - name: Clone NothingOSS kernel DT (msm-extra)
+      - name: Clone NothingOSS kernel DT
         run: |
           git clone --depth=1 -b sm7325/s \
             https://github.com/NothingOSS/android_kernel_devicetree_nothing_sm7325.git \
             sources/nothing_official_dt
 
-      # ── Kaynak 4: LineageOS device tree ──────────────────────
       - name: Clone LineageOS device tree
         run: |
           git clone --depth=1 \
             https://github.com/LineageOS/android_device_nothing_Spacewar.git \
             sources/lineage_device || true
 
-      # ── Kaynak 5: NP1-Developers device tree ─────────────────
       - name: Clone NP1-Developers device tree
         run: |
           git clone --depth=1 \
             https://github.com/NP1-Developers/android_device_nothing_spacewar.git \
             sources/np1_device || true
 
-      # ── Kaynak 6: HalogenOS device tree ──────────────────────
       - name: Clone HalogenOS device tree
         run: |
           git clone --depth=1 -b XOS-16.0 \
             https://github.com/halogenOS/android_device_nothing_Spacewar.git \
             sources/halogenos_device || true
 
-      # ── Kaynak 7: CrDroid vendor ──────────────────────────────
       - name: Clone CrDroid vendor
         run: |
           git clone --depth=1 -b 16.0 \
             https://github.com/crdroidandroid/proprietary_vendor_nothing_Spacewar.git \
             sources/crdroid_vendor || true
 
-- name: DEBUG - List NothingOSS files
+      - name: DEBUG - List NothingOSS files
         run: |
-          echo "=== NothingOSS msm-extra structure ==="
-          find sources/nothing_official_dt/msm-extra -type f -name "*.dtsi" | head -50
+          echo "=== NothingOSS full structure ==="
+          find sources/nothing_official_dt -type f | sort | head -80
           echo ""
           echo "=== Total files ==="
           find sources/nothing_official_dt -type f | wc -l
 
-      # ── Analiz ───────────────────────────────────────────────
       - name: Run hardware analysis
         run: |
           python3 Scripts/analyze_hardware.py \
@@ -94,15 +85,12 @@ jobs:
             --vendor     sources/crdroid_vendor \
             --output     Analysis/hardware_report.json
 
-      # ── Metadata ─────────────────────────────────────────────
       - name: Add metadata
         run: |
           python3 - <<'EOF'
           import json, subprocess, datetime
-
           with open('Analysis/hardware_report.json') as f:
               r = json.load(f)
-
           def git_commit(path):
               try:
                   return subprocess.check_output(
@@ -110,41 +98,28 @@ jobs:
                       text=True).strip()
               except:
                   return 'N/A'
-
           r['meta']['updated_at'] = datetime.datetime.utcnow().isoformat() + 'Z'
           r['meta']['source_commits'] = {
-              'crdroid_device':    git_commit('sources/crdroid_device'),
-              'kernel_dt':         git_commit('sources/kernel_dt'),
-              'nothing_official':  git_commit('sources/nothing_official_dt'),
-              'lineage_device':    git_commit('sources/lineage_device'),
-              'np1_device':        git_commit('sources/np1_device'),
-              'halogenos_device':  git_commit('sources/halogenos_device'),
-              'crdroid_vendor':    git_commit('sources/crdroid_vendor'),
+              'crdroid_device':   git_commit('sources/crdroid_device'),
+              'kernel_dt':        git_commit('sources/kernel_dt'),
+              'nothing_official': git_commit('sources/nothing_official_dt'),
+              'lineage_device':   git_commit('sources/lineage_device'),
+              'np1_device':       git_commit('sources/np1_device'),
+              'halogenos_device': git_commit('sources/halogenos_device'),
+              'crdroid_vendor':   git_commit('sources/crdroid_vendor'),
           }
           r['meta']['readable_url'] = (
               'https://raw.githubusercontent.com/aliss32/woa-spacewar/main/'
               'Analysis/hardware_report.json'
           )
-          r['meta']['sources_used'] = [
-              'crdroidandroid/android_device_nothing_Spacewar @ 14.0',
-              'ExTV/android_kernel_devicetree_nothing_sm7325',
-              'NothingOSS/android_kernel_devicetree_nothing_sm7325 @ sm7325/s (msm-extra)',
-              'LineageOS/android_device_nothing_Spacewar',
-              'NP1-Developers/android_device_nothing_spacewar',
-              'halogenOS/android_device_nothing_Spacewar @ XOS-16.0',
-              'crdroidandroid/proprietary_vendor_nothing_Spacewar @ 16.0',
-          ]
-
           with open('Analysis/hardware_report.json', 'w') as f:
               json.dump(r, f, indent=2)
-
-          print(f"✅ Updated: {r['meta']['updated_at']}")
+          print('Updated: ' + r['meta']['updated_at'])
           EOF
 
-      # ── Özet ─────────────────────────────────────────────────
       - name: Print summary
         run: |
-          python3 -c "
+          python3 - <<'EOF'
           import json
           with open('Analysis/hardware_report.json') as f:
               r = json.load(f)
@@ -152,33 +127,29 @@ jobs:
           st = r.get('Status', {})
           m  = r.get('meta', {})
           print()
-          print('══════════════════════════════════════════')
-          print('   SPACEWAR HARDWARE REPORT — UPDATED')
-          print('══════════════════════════════════════════')
-          print(f'  Updated  : {m.get(\"updated_at\",\"?\")}')
-          print()
-          print('  [Hardware Values]')
-          print(f'  WiFi     : {uv.get(\"WIFI_CHIP\",\"?\")}')
-          print(f'  Display  : {uv.get(\"DISPLAY_WIDTH\")}x{uv.get(\"DISPLAY_HEIGHT\")} @ {uv.get(\"DISPLAY_FPS\")}Hz')
-          print(f'  Audio    : {uv.get(\"AUDIO_CODEC\",\"?\")}')
-          print(f'  Amp      : {uv.get(\"SPEAKER_AMP\",\"?\")}')
-          print(f'  NFC      : {uv.get(\"NFC_IC\",\"?\")}')
-          print(f'  Vibrator : {uv.get(\"VIBRATOR_IC\",\"?\")}')
-          print(f'  Touch IC : {uv.get(\"TOUCH_IC\",\"?\")}')
-          print(f'  Touch I2C: {uv.get(\"TOUCH_I2C_ADDR\",\"?\")}')
-          print(f'  Touch RST: GPIO {uv.get(\"TOUCH_RESET_GPIO\",\"?\")}')
-          print(f'  Touch IRQ: GPIO {uv.get(\"TOUCH_IRQ_GPIO\",\"?\")}')
-          print(f'  FP IC    : {uv.get(\"FINGERPRINT_IC\",\"?\")}')
-          print(f'  Power Key: GPIO {uv.get(\"POWER_KEY_GPIO\",\"?\")}')
-          print(f'  Vol Up   : GPIO {uv.get(\"VOL_UP_GPIO\",\"?\")}')
-          print(f'  Vol Down : GPIO {uv.get(\"VOL_DOWN_GPIO\",\"?\")}')
-          print()
-          print(f'  TODOs    : {st.get(\"todo_count\",\"?\")} remaining')
+          print('=' * 50)
+          print('  SPACEWAR HARDWARE REPORT')
+          print('=' * 50)
+          print('  Updated  : ' + str(m.get('updated_at', '?')))
+          print('  WiFi     : ' + str(uv.get('WIFI_CHIP', '?')))
+          print('  Display  : ' + str(uv.get('DISPLAY_WIDTH')) + 'x' + str(uv.get('DISPLAY_HEIGHT')) + ' @ ' + str(uv.get('DISPLAY_FPS')) + 'Hz')
+          print('  Audio    : ' + str(uv.get('AUDIO_CODEC', '?')))
+          print('  Amp      : ' + str(uv.get('SPEAKER_AMP', '?')))
+          print('  NFC      : ' + str(uv.get('NFC_IC', '?')))
+          print('  Vibrator : ' + str(uv.get('VIBRATOR_IC', '?')))
+          print('  Touch IC : ' + str(uv.get('TOUCH_IC', '?')))
+          print('  Touch I2C: ' + str(uv.get('TOUCH_I2C_ADDR', '?')))
+          print('  Touch RST: GPIO ' + str(uv.get('TOUCH_RESET_GPIO', '?')))
+          print('  Touch IRQ: GPIO ' + str(uv.get('TOUCH_IRQ_GPIO', '?')))
+          print('  FP IC    : ' + str(uv.get('FINGERPRINT_IC', '?')))
+          print('  Power Key: GPIO ' + str(uv.get('POWER_KEY_GPIO', '?')))
+          print('  Vol Up   : GPIO ' + str(uv.get('VOL_UP_GPIO', '?')))
+          print('  Vol Down : GPIO ' + str(uv.get('VOL_DOWN_GPIO', '?')))
+          print('  TODOs    : ' + str(st.get('todo_count', '?')) + ' remaining')
           for t in st.get('todo_fields', []):
-              print(f'    ⏳ {t}')
-          "
+              print('    - ' + str(t))
+          EOF
 
-      # ── Commit ────────────────────────────────────────────────
       - name: Commit updated report
         run: |
           git config user.name  "github-actions[bot]"
