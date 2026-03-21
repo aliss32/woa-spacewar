@@ -22,22 +22,58 @@ jobs:
             python3 python3-distutils python3-pil python3-git \
             gcc-aarch64-linux-gnu clang llvm lld \
             mono-devel acpica-tools gettext \
-            libsdl2-2.0-0 libsdl2-dev abootimg
+            libsdl2-2.0-0 libsdl2-dev abootimg \
+            device-tree-compiler
 
       - name: Clone edk2-msm
         run: |
           git clone https://github.com/edk2-porting/edk2-msm.git \
             --recursive --depth=1 edk2-msm
 
+      - name: Build spacewar DTB from CrDroid kernel DT
+        run: |
+          # CrDroid'in spacewar kernel DT'si - zaten çalışan kaynak
+          git clone --depth=1 \
+            https://github.com/crdroidandroid/android_device_nothing_Spacewar.git \
+            -b 14.0 crdroid_device
+
+          # Spacewar DTB'yi bul
+          echo "=== Mevcut DTB dosyaları ==="
+          find crdroid_device -name "*.dtb" | head -10
+
+          DTB=$(find crdroid_device -name "*spacewar*.dtb" \
+                -o -name "*sm7325*spacewar*.dtb" 2>/dev/null | head -1)
+
+          if [ -n "$DTB" ]; then
+            echo "DTB bulundu: $DTB"
+            cp "$DTB" spacewar.dtb
+          else
+            echo "Pre-built DTB yok, ExTV kernel DT'sinden derleniyor..."
+            git clone --depth=1 \
+              https://github.com/ExTV/android_kernel_devicetree_nothing_sm7325.git \
+              kernel_dt
+            DTS=$(find kernel_dt -name "*spacewar*.dts" \
+                  -o -name "*yupik*spacewar*.dts" 2>/dev/null | head -1)
+            if [ -n "$DTS" ]; then
+              echo "DTS bulundu: $DTS"
+              dtc -I dts -O dtb -o spacewar.dtb "$DTS" 2>/dev/null || \
+                cp edk2-msm/Platform/Xiaomi/sm7325/FdtBlob_compat/lisa.dtb spacewar.dtb
+            else
+              echo "DTS bulunamadı, lisa.dtb fallback kullanılıyor"
+              cp edk2-msm/Platform/Xiaomi/sm7325/FdtBlob_compat/lisa.dtb spacewar.dtb
+            fi
+          fi
+
+          ls -la spacewar.dtb
+
       - name: Copy Spacewar files into edk2-msm
         run: |
-          # Device config
           cp UEFI/configs/devices/spacewar.conf \
              edk2-msm/configs/devices/spacewar.conf
 
-          # Platform/Nothing/sm7325/
           mkdir -p edk2-msm/Platform/Nothing/sm7325/AcpiTables/spacewar
           mkdir -p edk2-msm/Platform/Nothing/sm7325/FdtBlob
+          mkdir -p edk2-msm/Platform/Nothing/sm7325/FdtBlob_compat
 
           cp UEFI/Platform/Nothing/sm7325/spacewar.dsc \
              edk2-msm/Platform/Nothing/sm7325/spacewar.dsc
@@ -46,9 +82,11 @@ jobs:
           cp UEFI/Platform/Nothing/sm7325/AcpiTables/spacewar/DSDT.asl \
              edk2-msm/Platform/Nothing/sm7325/AcpiTables/spacewar/DSDT.asl
 
-          # DTB - Xiaomi/sm7325'den kopyala (sm7325 için ortak DTB)
           cp edk2-msm/Platform/Xiaomi/sm7325/FdtBlob/sm7325-generic-msd.dtb \
              edk2-msm/Platform/Nothing/sm7325/FdtBlob/sm7325-generic-msd.dtb
+
+          cp spacewar.dtb \
+             edk2-msm/Platform/Nothing/sm7325/FdtBlob_compat/spacewar.dtb
 
           echo "=== Kopyalanan dosyalar ==="
           find edk2-msm/Platform/Nothing -type f | sort
@@ -57,7 +95,6 @@ jobs:
         run: |
           iasl -p edk2-msm/Platform/Nothing/sm7325/AcpiTables/spacewar/DSDT \
                edk2-msm/Platform/Nothing/sm7325/AcpiTables/spacewar/DSDT.asl
-          echo "=== AcpiTables ==="
           ls -la edk2-msm/Platform/Nothing/sm7325/AcpiTables/spacewar/
 
       - name: Build UEFI
