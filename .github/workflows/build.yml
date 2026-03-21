@@ -29,48 +29,29 @@ jobs:
           git clone https://github.com/edk2-porting/edk2-msm.git \
             --recursive --depth=1 edk2-msm
 
-      - name: Show edk2-msm real structure
-        run: |
-          echo "=== Platform/ ==="
-          ls edk2-msm/Platform/
-          echo ""
-          echo "=== configs/ ==="
-          ls edk2-msm/configs/
-          echo ""
-          echo "=== configs/devices/ ==="
-          ls edk2-msm/configs/devices/
-          echo ""
-          echo "=== Sample conf ==="
-          cat edk2-msm/configs/devices/$(ls edk2-msm/configs/devices/ | head -1)
-          echo ""
-          echo "=== build.sh first 50 lines ==="
-          head -50 edk2-msm/build.sh
-
       - name: Copy Spacewar files into edk2-msm
         run: |
           # Device config
           cp UEFI/configs/devices/spacewar.conf \
              edk2-msm/configs/devices/spacewar.conf
 
-          # Platform files
-          mkdir -p edk2-msm/Platform/Nothing/sm7325/AcpiTables
-          cp UEFI/Platform/Nothing/sm7325/spacewar.dsc \
-             edk2-msm/Platform/Nothing/sm7325/spacewar.dsc
-          cp UEFI/Platform/Nothing/sm7325/spacewar.fdf.inc \
-             edk2-msm/Platform/Nothing/sm7325/spacewar.fdf.inc
-          cp UEFI/Platform/Nothing/sm7325/AcpiTables/DSDT.asl \
-             edk2-msm/Platform/Nothing/sm7325/AcpiTables/DSDT.asl
+          # Platform files - Platform/Qualcomm/sm7325/ (lisa ile aynı konum)
+          mkdir -p edk2-msm/Platform/Qualcomm/sm7325/AcpiTables/spacewar
+
+          cp UEFI/Platform/Qualcomm/sm7325/spacewar.dsc \
+             edk2-msm/Platform/Qualcomm/sm7325/spacewar.dsc
+          cp UEFI/Platform/Qualcomm/sm7325/spacewar.fdf.inc \
+             edk2-msm/Platform/Qualcomm/sm7325/spacewar.fdf.inc
+          cp UEFI/Platform/Qualcomm/sm7325/AcpiTables/DSDT.asl \
+             edk2-msm/Platform/Qualcomm/sm7325/AcpiTables/spacewar/DSDT.asl
 
           echo "=== Kopyalanan dosyalar ==="
-          find edk2-msm/Platform/Nothing -type f
-          echo ""
-          echo "=== spacewar.conf ==="
-          cat edk2-msm/configs/devices/spacewar.conf
+          find edk2-msm/Platform/Qualcomm/sm7325 -name "spacewar*" -o -name "DSDT*" | sort
 
       - name: Build UEFI
         run: |
           cd edk2-msm
-          ./build.sh --device spacewar --release
+          ./build.sh -d spacewar -r RELEASE
 
       - name: Upload boot image
         uses: actions/upload-artifact@v4
