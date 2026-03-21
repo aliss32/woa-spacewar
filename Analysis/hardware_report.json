@@ -7,7 +7,7 @@
     "kernel": "5.4.x-mysellysenpai (CrDroid)",
     "generator": "analyze_hardware.py v4 \u2014 github-actions[bot]",
     "readable_url": "https://raw.githubusercontent.com/aliss32/woa-spacewar/main/Analysis/hardware_report.json",
-    "updated_at": "2026-03-21T19:30:28.425039Z",
+    "updated_at": "2026-03-21T19:30:52.080085Z",
     "source_commits": {
       "crdroid_device": "794133f",
       "kernel_dt": "a5ef406",
@@ -64,21 +64,21 @@
     "audio_codec": [
       "qcom,wcd938x-codec",
       "qcom,wcd938x-slave",
-      "qcom,wcd937x-codec",
-      "qcom,wcd937x-slave"
+      "qcom,wcd937x-slave",
+      "qcom,wcd937x-codec"
     ],
     "has_tfa9874": false,
     "pmic_chips": [
-      "qcom,pm7325b-gpio",
-      "qcom,pm8350-gpio",
-      "qcom,pm8350b-gpio",
-      "qcom,pmk8350-gpio",
+      "qcom,pm7325-gpio",
       "qcom,pm7325b-spmi-wled",
+      "qcom,pm8350-gpio",
+      "qcom,pm7325b-gpio",
+      "qcom,pm8350b-gpio",
       "qcom,pmk8350-rtc",
       "qcom,pm8350c-gpio",
-      "qcom,pm8350c-flash-led",
       "qcom,lcdb-pm7325b",
-      "qcom,pm7325-gpio"
+      "qcom,pmk8350-gpio",
+      "qcom,pm8350c-flash-led"
     ],
     "nfc_ic": [
       "TODO"
@@ -113,23 +113,23 @@
     "AUDIO_CODEC": [
       "qcom,wcd938x-codec",
       "qcom,wcd938x-slave",
-      "qcom,wcd937x-codec",
-      "qcom,wcd937x-slave"
+      "qcom,wcd937x-slave",
+      "qcom,wcd937x-codec"
     ],
     "SPEAKER_AMP": [
       "TODO"
     ],
     "PMIC_CHIPS": [
-      "qcom,pm7325b-gpio",
-      "qcom,pm8350-gpio",
-      "qcom,pm8350b-gpio",
-      "qcom,pmk8350-gpio",
+      "qcom,pm7325-gpio",
       "qcom,pm7325b-spmi-wled",
+      "qcom,pm8350-gpio",
+      "qcom,pm7325b-gpio",
+      "qcom,pm8350b-gpio",
       "qcom,pmk8350-rtc",
       "qcom,pm8350c-gpio",
-      "qcom,pm8350c-flash-led",
       "qcom,lcdb-pm7325b",
-      "qcom,pm7325-gpio"
+      "qcom,pmk8350-gpio",
+      "qcom,pm8350c-flash-led"
     ],
     "TOUCH_IC": [
       "TODO"
