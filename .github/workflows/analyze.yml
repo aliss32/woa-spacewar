@@ -35,7 +35,7 @@ jobs:
             https://github.com/ExTV/android_kernel_devicetree_nothing_sm7325.git \
             sources/kernel_dt
 
-      - name: Clone NothingOSS kernel DT
+      - name: Clone NothingOSS kernel DT (msm-extra)
         run: |
           git clone --depth=1 -b sm7325/s \
             https://github.com/NothingOSS/android_kernel_devicetree_nothing_sm7325.git \
@@ -59,12 +59,6 @@ jobs:
             https://github.com/halogenOS/android_device_nothing_Spacewar.git \
             sources/halogenos_device || true
 
-      - name: Clone CrDroid vendor
-        run: |
-          git clone --depth=1 -b 16.0 \
-            https://github.com/crdroidandroid/proprietary_vendor_nothing_Spacewar.git \
-            sources/crdroid_vendor || true
-
       - name: DEBUG - List NothingOSS files
         run: |
           echo "=== NothingOSS full structure ==="
@@ -82,7 +76,6 @@ jobs:
             --lineage    sources/lineage_device \
             --np1        sources/np1_device \
             --halogenos  sources/halogenos_device \
-            --vendor     sources/crdroid_vendor \
             --output     Analysis/hardware_report.json
 
       - name: Add metadata
@@ -106,7 +99,6 @@ jobs:
               'lineage_device':   git_commit('sources/lineage_device'),
               'np1_device':       git_commit('sources/np1_device'),
               'halogenos_device': git_commit('sources/halogenos_device'),
-              'crdroid_vendor':   git_commit('sources/crdroid_vendor'),
           }
           r['meta']['readable_url'] = (
               'https://raw.githubusercontent.com/aliss32/woa-spacewar/main/'
