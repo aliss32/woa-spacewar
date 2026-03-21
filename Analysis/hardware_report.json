@@ -6,13 +6,14 @@
     "gpu": "Adreno 642L",
     "kernel": "5.4.x-mysellysenpai (CrDroid)",
     "generator": "analyze_hardware.py \u2014 github-actions[bot]",
-    "updated_at": "2026-03-21T14:34:39.644619Z",
+    "updated_at": "2026-03-21T14:44:56.590051Z",
     "source_commits": {
       "crdroid_device": "794133f",
       "kernel_dt": "a5ef406",
       "halogenos_device": "22e7452",
       "vendor": "8453c4f"
-    }
+    },
+    "readable_url": "https://raw.githubusercontent.com/aliss32/woa-spacewar/main/Analysis/hardware_report.json"
   },
   "BoardConfig": {
     "kernel_base": "0x00000000",
@@ -1408,12 +1409,12 @@
       "RM692E5"
     ],
     "touch_ic": [
-      "synaptics,tcm-i2c",
+      "synaptics,dsx-i2c",
       "goodix,fingerprint",
+      "synaptics,tcm-i2c",
       "focaltech,fts_ts",
       "goodix,gt9916S",
-      "novatek,NVT-ts",
-      "synaptics,dsx-i2c"
+      "novatek,NVT-ts"
     ],
     "touch_i2c_addr": "0x08",
     "touch_reset_gpio": "1",
@@ -1423,31 +1424,31 @@
     ],
     "fingerprint_type": "optical_udfps",
     "audio_codec": [
-      "qcom,wcd938x-codec",
+      "tfa,tfa98xx",
       "qcom,wcd937x-slave",
       "qcom,wcd937x-codec",
-      "tfa,tfa98xx",
+      "qcom,wcd938x-codec",
       "qcom,wcd938x-slave"
     ],
     "pmic_chips": [
-      "qcom,pm8350b-gpio",
+      "qcom,lcdb-pm7325b",
       "qcom,pm8350b-swr-haptics",
+      "qcom,pm8350b-gpio",
       "qcom,pm7325b-spmi-wled",
       "qcom,pmk8350-gpio",
-      "qcom,pmk8350-rtc",
-      "qcom,pm8350-gpio",
       "qcom,pm8350c-flash-led",
-      "qcom,pm8350c-gpio",
-      "qcom,pm7325b-gpio",
       "qcom,pm7325-gpio",
-      "qcom,lcdb-pm7325b"
+      "qcom,pm8350-gpio",
+      "qcom,pmk8350-rtc",
+      "qcom,pm8350c-gpio",
+      "qcom,pm7325b-gpio"
     ],
     "nfc_ic": [
       "st,st21nfc"
     ],
     "vibrator_ic": [
-      "awinic,aw210xx_led",
-      "awinic,aw2016_led"
+      "awinic,aw2016_led",
+      "awinic,aw210xx_led"
     ],
     "uart_nodes": [
       "uart3"
@@ -1476,32 +1477,32 @@
     "WIFI_MODULE": "qca_cld3_qca6750.ko",
     "WIFI_6E": "true",
     "AUDIO_CODEC": [
-      "qcom,wcd938x-codec",
+      "tfa,tfa98xx",
       "qcom,wcd937x-slave",
       "qcom,wcd937x-codec",
-      "tfa,tfa98xx",
+      "qcom,wcd938x-codec",
       "qcom,wcd938x-slave"
     ],
     "PMIC_CHIPS": [
-      "qcom,pm8350b-gpio",
+      "qcom,lcdb-pm7325b",
       "qcom,pm8350b-swr-haptics",
+      "qcom,pm8350b-gpio",
       "qcom,pm7325b-spmi-wled",
       "qcom,pmk8350-gpio",
-      "qcom,pmk8350-rtc",
-      "qcom,pm8350-gpio",
       "qcom,pm8350c-flash-led",
-      "qcom,pm8350c-gpio",
-      "qcom,pm7325b-gpio",
       "qcom,pm7325-gpio",
-      "qcom,lcdb-pm7325b"
+      "qcom,pm8350-gpio",
+      "qcom,pmk8350-rtc",
+      "qcom,pm8350c-gpio",
+      "qcom,pm7325b-gpio"
     ],
     "TOUCH_IC": [
-      "synaptics,tcm-i2c",
+      "synaptics,dsx-i2c",
       "goodix,fingerprint",
+      "synaptics,tcm-i2c",
       "focaltech,fts_ts",
       "goodix,gt9916S",
-      "novatek,NVT-ts",
-      "synaptics,dsx-i2c"
+      "novatek,NVT-ts"
     ],
     "TOUCH_I2C_ADDR": "0x08",
     "TOUCH_RESET_GPIO": "1",
@@ -1514,8 +1515,8 @@
       "st,st21nfc"
     ],
     "VIBRATOR_IC": [
-      "awinic,aw210xx_led",
-      "awinic,aw2016_led"
+      "awinic,aw2016_led",
+      "awinic,aw210xx_led"
     ],
     "POWER_KEY_GPIO": "87",
     "VOL_UP_GPIO": "TODO",
