@@ -1,0 +1,44 @@
+name: Adapt Lisa Drivers for Spacewar
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'Scripts/adapt_drivers.py'
+
+jobs:
+  adapt:
+    runs-on: ubuntu-22.04
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Clone Lisa driver repo
+        run: |
+          git clone --depth=1 \
+            https://github.com/AistopGit/windows_oem_xiaomi_lisa.git \
+            lisa-drivers
+
+      - name: Run adaptation script
+        run: |
+          python3 Scripts/adapt_drivers.py \
+            lisa-drivers \
+            Drivers/spacewar-adapted
+
+      - name: Upload adapted drivers
+        uses: actions/upload-artifact@v4
+        with:
+          name: spacewar-drivers
+          path: Drivers/spacewar-adapted/
+
+      - name: Commit adapted drivers
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add Drivers/
+          git diff --staged --quiet || \
+            git commit -m "drivers: adapt Lisa drivers for Spacewar [bot]"
+          git push
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

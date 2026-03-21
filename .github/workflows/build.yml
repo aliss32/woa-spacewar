@@ -1,0 +1,66 @@
+name: Build WOA-Spacewar UEFI
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'UEFI/**'
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential uuid-dev iasl git nasm \
+            python3 python3-distutils \
+            gcc-aarch64-linux-gnu \
+            clang llvm lld \
+            mono-devel acpica-tools
+
+      - name: Clone edk2-msm
+        run: |
+          git clone https://github.com/edk2-porting/edk2-msm.git \
+            --recursive --depth=1 edk2-msm
+
+      - name: Copy Spacewar device tree
+        run: |
+          cp -r UEFI/Platform/Device/spacewar \
+            edk2-msm/Platform/Device/spacewar
+
+      - name: Build UEFI
+        run: |
+          cd edk2-msm
+          ./build.sh --device spacewar --release
+
+      - name: Upload boot image
+        uses: actions/upload-artifact@v4
+        with:
+          name: boot-spacewar
+          path: edk2-msm/boot-spacewar.img
+          if-no-files-found: warn
+
+      - name: Create Release
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: build-${{ github.run_number }}
+          name: "Spacewar UEFI Build #${{ github.run_number }}"
+          body: |
+            ## WOA-Spacewar UEFI — Auto Build #${{ github.run_number }}
+            **Commit:** ${{ github.sha }}
+            ### Test (safe — nothing written to device)
+            ```bash
+            fastboot boot boot-spacewar.img
+            ```
+          files: edk2-msm/boot-spacewar.img
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
