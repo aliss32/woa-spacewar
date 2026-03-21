@@ -1,0 +1,134 @@
+name: Auto-Update Hardware Report
+
+on:
+  # Her gece yarısı UTC 00:00
+  schedule:
+    - cron: '0 0 * * *'
+  # Her commit'te çalış
+  push:
+    branches: [ main ]
+  # Manuel tetikleme
+  workflow_dispatch:
+
+jobs:
+  update:
+    runs-on: ubuntu-22.04
+    # Bot'un kendi commit'leri sonsuz döngü oluşturmasın!
+    if: "!contains(github.event.head_commit.message, '[bot]')"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: sudo apt-get install -y python3 git
+
+      - name: Clone CrDroid device tree
+        run: |
+          git clone --depth=1 -b 14.0 \
+            https://github.com/crdroidandroid/android_device_nothing_Spacewar.git \
+            sources/crdroid_device
+
+      - name: Clone Nothing official kernel DT
+        run: |
+          git clone --depth=1 \
+            https://github.com/ExTV/android_kernel_devicetree_nothing_sm7325.git \
+            sources/kernel_dt
+
+      - name: Clone HalogenOS device tree
+        run: |
+          git clone --depth=1 -b XOS-16.0 \
+            https://github.com/halogenOS/android_device_nothing_Spacewar.git \
+            sources/halogenos_device || true
+
+      - name: Clone CrDroid vendor
+        run: |
+          git clone --depth=1 -b 16.0 \
+            https://github.com/crdroidandroid/proprietary_vendor_nothing_Spacewar.git \
+            sources/vendor || true
+
+      - name: Run hardware analysis
+        run: |
+          python3 Scripts/analyze_hardware.py \
+            --crdroid   sources/crdroid_device \
+            --kernel    sources/kernel_dt \
+            --halogenos sources/halogenos_device \
+            --vendor    sources/vendor \
+            --output    Analysis/hardware_report.json
+
+      - name: Add timestamp and source commits
+        run: |
+          python3 - <<'EOF'
+          import json, subprocess, datetime
+
+          with open('Analysis/hardware_report.json') as f:
+              report = json.load(f)
+
+          def get_commit(path):
+              try:
+                  return subprocess.check_output(
+                      ['git', '-C', path, 'rev-parse', '--short', 'HEAD'],
+                      text=True
+                  ).strip()
+              except:
+                  return 'unknown'
+
+          report['meta']['updated_at'] = datetime.datetime.utcnow().isoformat() + 'Z'
+          report['meta']['source_commits'] = {
+              'crdroid_device':   get_commit('sources/crdroid_device'),
+              'kernel_dt':        get_commit('sources/kernel_dt'),
+              'halogenos_device': get_commit('sources/halogenos_device'),
+              'vendor':           get_commit('sources/vendor'),
+          }
+
+          with open('Analysis/hardware_report.json', 'w') as f:
+              json.dump(report, f, indent=2)
+
+          print("✅ Timestamp and source commits added")
+          EOF
+
+      - name: Print summary
+        run: |
+          python3 -c "
+          import json
+          with open('Analysis/hardware_report.json') as f:
+              r = json.load(f)
+          uv = r.get('UEFI_Values', {})
+          st = r.get('Status', {})
+          m  = r.get('meta', {})
+          print()
+          print('════════════════════════════════════')
+          print('  SPACEWAR HARDWARE REPORT UPDATED')
+          print('════════════════════════════════════')
+          print(f'  Updated : {m.get(\"updated_at\", \"?\")}')
+          print(f'  WiFi    : {uv.get(\"WIFI_CHIP\", \"?\")}')
+          print(f'  Display : {uv.get(\"DISPLAY_WIDTH\")}x{uv.get(\"DISPLAY_HEIGHT\")} @ {uv.get(\"DISPLAY_FPS\")}Hz')
+          print(f'  Touch IC: {uv.get(\"TOUCH_IC\", \"?\")}')
+          print(f'  Touch I2C: {uv.get(\"TOUCH_I2C_ADDR\", \"?\")}')
+          print(f'  RST GPIO: {uv.get(\"TOUCH_RESET_GPIO\", \"?\")}')
+          print(f'  IRQ GPIO: {uv.get(\"TOUCH_IRQ_GPIO\", \"?\")}')
+          print(f'  PWR GPIO: {uv.get(\"POWER_KEY_GPIO\", \"?\")}')
+          print(f'  Audio   : {uv.get(\"AUDIO_CODEC\", \"?\")}')
+          print(f'  NFC     : {uv.get(\"NFC_IC\", \"?\")}')
+          print(f'  Vibrator: {uv.get(\"VIBRATOR_IC\", \"?\")}')
+          print(f'  TODOs   : {st.get(\"todo_count\", \"?\")} remaining')
+          for t in st.get('todo_fields', []):
+              print(f'    - {t}')
+          "
+
+      - name: Commit if changed
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add Analysis/hardware_report.json
+          git diff --staged --quiet || \
+            git commit -m "analysis: auto-update hardware_report.json [$(date -u +%Y-%m-%d)] [bot]"
+          git push
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: hardware-report-${{ github.run_number }}
+          path: Analysis/hardware_report.json
