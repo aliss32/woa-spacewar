@@ -119,7 +119,7 @@ DefinitionBlock ("DSDT.aml", "DSDT", 2, "MSFT", "SPACEWAR", 1)
   // Path: /sys/devices/platform/soc/a94000.spi/spi_master/spi0/spi0.0
   Device (TCH0)
   {
-    Name (_HID, "STM0FTS0")
+    Name (_HID, "STM0F000")
     Name (_UID, 0)
     Name (_CRS, ResourceTemplate ()
     {
