@@ -17,7 +17,7 @@
   GCC:*_*_AARCH64_CC_FLAGS = -DENABLE_SIMPLE_INIT -DENABLE_LINUX_SIMPLE_MASS_STORAGE
 
 [PcdsFixedAtBuild.common]
-  # Display - 1080x2400 @ 120Hz [ADB confirmed]
+  # Display - 1080x2400 @ 60Hz (DSC Enabled) [Experimental]
   # PcdMipiFrameBufferAddress|0xE1000000 already defined in sm7325.dsc - do not redefine here
   gQcomTokenSpaceGuid.PcdMipiFrameBufferWidth|1080
   gQcomTokenSpaceGuid.PcdMipiFrameBufferHeight|2400

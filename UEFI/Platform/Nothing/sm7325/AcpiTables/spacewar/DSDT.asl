@@ -20,7 +20,7 @@ DefinitionBlock ("DSDT.aml", "DSDT", 2, "MSFT", "SPACEWAR", 1)
   Name (FBSZ, 0x00800000)
   Name (DSWI, 1080)
   Name (DSHI, 2400)
-  Name (DSFR, 120)
+  Name (DSFR, 60)
 
   Device (DSP0)
   {
@@ -29,6 +29,20 @@ DefinitionBlock ("DSDT.aml", "DSDT", 2, "MSFT", "SPACEWAR", 1)
     Name (_CRS, ResourceTemplate () {
       Memory32Fixed (ReadWrite, 0xE1000000, 0x00800000)
     })
+    
+    // Windows Display Driver Refresh Rate Override
+    Method (_DSD, 0, NotSerialized)
+    {
+      Return (Package()
+      {
+        ToUUID("daffd814-6eba-4d8c-8a91-bc9bbf4aa301"),
+        Package()
+        {
+          Package() { "refresh-rate", 60 },
+          Package() { "dsc-enabled", 0 }
+        }
+      })
+    }
   }
 
   // GPU - Adreno 642L [NATIVE]
@@ -77,63 +91,93 @@ DefinitionBlock ("DSDT.aml", "DSDT", 2, "MSFT", "SPACEWAR", 1)
   Device (WIF0) { Name (_HID, "QCOM010C") Name (_UID, 0) }
   Device (BTH0) { Name (_HID, "QCOM0517") Name (_UID, 0) }
 
-  // Audio WCD9385
+  // Audio - WCD9385 + TFA9874 (Stereo) [NATIVE]
   Device (AUD0) { Name (_HID, "QCOM0B27") Name (_UID, 0) }
-  Device (AMP0) { Name (_HID, "TFA09874") Name (_UID, 0) }
+  
+  // TFA9874 Speaker Amps on I2C1
+  Device (AMP0)
+  {
+    Name (_HID, "TFA09874")
+    Name (_UID, 0)
+    Name (_CRS, ResourceTemplate () {
+      I2CSerialBus (0x0034, ControllerInitiated, 400000, AddressingMode7Bit, "\\_SB.I2C1", 0, ResourceConsumer, , )
+    })
+  }
+  Device (AMP1)
+  {
+    Name (_HID, "TFA09874")
+    Name (_UID, 1)
+    Name (_CRS, ResourceTemplate () {
+      I2CSerialBus (0x0035, ControllerInitiated, 400000, AddressingMode7Bit, "\\_SB.I2C1", 0, ResourceConsumer, , )
+    })
+  }
 
-  // PMICs - Native SM7325 (PM7325 family)
-  // Matches: qcpmic7280.inf -> ACPI\QCOM0A2B (PM7325 main)
+  // NFC - ST21NFC [NATIVE]
+  Device (NFC0)
+  {
+    Name (_HID, "STM21NFC")
+    Name (_UID, 0)
+    Name (_CRS, ResourceTemplate () {
+      I2CSerialBus (0x0008, ControllerInitiated, 400000, AddressingMode7Bit, "\\_SB.I2C3", 0, ResourceConsumer, , )
+      GpioInt (Level, ActiveHigh, Exclusive, PullDown, 0, "\\_SB.GIO0", 0, ResourceConsumer, , ) { 41 } // IRQ
+      GpioIo (Exclusive, PullUp, 0, 0, IoRestrictionNone, "\\_SB.GIO0", 0, ResourceConsumer, , ) { 38 } // Reset
+    })
+  }
+
+  // PMICs - Native SM7325
   Device (PMI0) { Name (_HID, "QCOM0A2B") Name (_UID, 0) }
-  // Matches: QcPmicApps7280.inf -> ACPI\QCOM0A2C (PMK7325 Apps)
   Device (PMI1) { Name (_HID, "QCOM0A2C") Name (_UID, 1) }
-  // Matches: qcpmicgpio7280.inf -> ACPI\QCOM0A2D (PMIC GPIO)
   Device (PMI2) { Name (_HID, "QCOM0A2D") Name (_UID, 2) }
-  // Matches: qcpmicglink7280.inf -> ACPI\QCOM0A8E (PMIC GLink / PM8350B)
   Device (PMI3) { Name (_HID, "QCOM0A8E") Name (_UID, 3) }
 
-  // Battery
-  Device (BAT0) { Name (_HID, EISAID ("PNP0C0A")) Name (_UID, 0) }
+  // Keyboard / Buttons [NATIVE]
+  Device (KBD0)
+  {
+    Name (_HID, "QCOM0000") // Generic GPIO Buttons
+    Name (_CID, "PNP0C40")
+    Name (_UID, 0)
+    Method (_CRS, 0, NotSerialized) {
+      Name (RBUF, ResourceTemplate () {
+        GpioInt (Edge, ActiveBoth, ExclusiveAndWake, PullUp, 0, "\\_SB.GIO0", 0, ResourceConsumer, , ) { 87 } // Power
+        GpioInt (Edge, ActiveBoth, ExclusiveAndWake, PullUp, 0, "\\_SB.GIO0", 0, ResourceConsumer, , ) { 6 }  // Volume Up
+      })
+      Return (RBUF)
+    }
+  }
 
-  // Touch - Goodix GT9895 I2C [NATIVE]
-  // Path: /sys/devices/platform/soc/994000.i2c/i2c-9/9-005d
-  // HID matches: vhidmini.inf -> ACPI\GDGT9897
+  // Touch - Goodix GT9916S SPI [NATIVE]
+  // HID: GDIX9916 (Berlin variant)
   Device (TCH0)
   {
-    Name (_HID, "GDGT9897")
+    Name (_HID, "GDIX9916")
     Name (_CID, "PNP0C50")
     Name (_UID, 0)
     Method (_CRS, 0, Serialized)
     {
       Name (RBUF, ResourceTemplate ()
       {
-        I2CSerialBus (0x005D, ControllerInitiated, 400000, AddressingMode7Bit, "\\_SB.I2C9", 0, ResourceConsumer, , )
-        GpioInt (Level, ActiveLow, Exclusive, PullUp, 0, "\\_SB.GIO0", 0, ResourceConsumer, , ) { 116 }
+        SPISerialBusV2 (0, PolarityLow, FourWireMode, 8, ControllerInitiated, 1000000, ClockPolarityLow, ClockPhaseFirst, "\\_SB.SPI0", 0, ResourceConsumer, , )
+        GpioInt (Level, ActiveLow, Exclusive, PullUp, 0, "\\_SB.GIO0", 0, ResourceConsumer, , ) { 81 } // IRQ
+        GpioIo (Exclusive, PullUp, 0, 0, IoRestrictionNone, "\\_SB.GIO0", 0, ResourceConsumer, , ) { 105 } // Reset
       })
       Return (RBUF)
-    }
-    Method (_DSM, 4, Serialized)
-    {
-      If (LEqual (Arg0, ToUUID ("EF87B042-CB3C-4C10-B149-994119B917F4")))
-      {
-        If (LEqual (Arg2, Zero)) { Return (Buffer (One) { 0x03 }) }
-        If (LEqual (Arg2, One)) { Return (0x01) }
-      }
-      Return (Buffer (One) { Zero })
     }
   }
 
   // I2C Controllers
   Device (I2C0) { Name (_HID, "QCOM04A6") Name (_UID, 0) }
   Device (I2C1) { Name (_HID, "QCOM04A6") Name (_UID, 1) }
+  Device (I2C3) { Name (_HID, "QCOM04A6") Name (_UID, 3) }
 
-  // I2C9 for Spacewar Goodix Touch
-  Device (I2C9)
+  // SPI Controllers
+  // SPI0 for Touchscreen
+  Device (SPI0)
   {
-    Name (_HID, "QCOM04A6")
-    Name (_UID, 9)
+    Name (_HID, "QCOM04BA")
+    Name (_UID, 0)
     Name (_CRS, ResourceTemplate () {
-      Memory32Fixed (ReadWrite, 0x00994000, 0x00001000)
-      Interrupt (ResourceConsumer, Level, ActiveHigh, Shared, ,, ) { 498 }
+      Memory32Fixed (ReadWrite, 0x00A94000, 0x00001000)
+      Interrupt (ResourceConsumer, Level, ActiveHigh, Shared, ,, ) { 601 }
     })
   }
 
@@ -147,11 +191,10 @@ DefinitionBlock ("DSDT.aml", "DSDT", 2, "MSFT", "SPACEWAR", 1)
     })
   }
 
-  // Glyph + Vibrator
-  Device (GLY0) { Name (_HID, "AWNC2016") Name (_UID, 0) }
-  Device (GLY1) { Name (_HID, "AWNC210A") Name (_UID, 1) }
-
   // UART debug
   Device (UAR0) { Name (_HID, "QCOM2431") Name (_UID, 3) }
+
+  // CPU Power Management
+  Include ("Cpu.asl")
 
 } // End DSDT

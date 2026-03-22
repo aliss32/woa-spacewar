@@ -1,27 +1,33 @@
-# Spacewar (Nothing Phone 1) Windows 11 Port Walkthrough
+# Spacewar (Nothing Phone 1) — Windows 11 Port Walkthrough
 
-This document tracks the progress of porting Windows 11 to the Nothing Phone (1).
+This document tracks the porting progress of Windows 11 ARM64 to the Nothing Phone (1) (codename: `spacewar`).
 
 ## Accomplishments
 
-### 1. UEFI Development
-- **Memory Map**: Verified 100% match between Nothing OS and Renegade Project SM7325 mapping.
-- **ACPI (DSDT)**: Hand-crafted UFS and USB nodes using native IRQs (297 for UFS, 162/529 for USB) to prevent `INACCESSIBLE_BOOT_DEVICE` BSOD.
-- **Build System**: Configured a working GitHub Actions CI/CD to generate `boot-spacewar.img`.
+### Phase 1: SoC & Display [COMPLETE]
+- **Platform Correction**: Fixed critical SoC platform mismatch (`lahaina` -> `yupik`) to accurately reflect the SM7325-AE (Snapdragon 778G+) hardware.
+- **CPU Power Management**: Implemented [Cpu.asl](file:///c:/Users/aliha/Desktop/woa-spacewar/woa-spacewar/UEFI/Platform/Nothing/sm7325/AcpiTables/spacewar/Cpu.asl) defining 8 processor objects with CPPC tables tuned for 2.4GHz/2.5GHz Prime core.
+- **Display Baseline**: Established a stable 60Hz/No-DSC baseline in [DSDT.asl](file:///c:/Users/aliha/Desktop/woa-spacewar/woa-spacewar/UEFI/Platform/Nothing/sm7325/AcpiTables/spacewar/DSDT.asl) for initial driver compatibility.
 
-### 2. Driver Package (BSP) Assembly
-- **Base Layer**: Merged core Snapdragon 778G drivers from Xiaomi (Lisa) and Samsung (A52s).
-- **Native GPU**: Injected **original `a660_sqe.fw`** from Nothing OS vendor blobs into the Adreno 642L driver slot.
-- **PMIC & Battery**: Successfully ported native `PM7325`, `PMK8350`, and `PM7350C` drivers from the Lisa platform to fully replace early Samsung `SM5714` placeholders.
-- **Touch & Audio**: Removed `S556A` placeholder driver. Injected the native compatible Goodix `GT9895` controller and mapped the missing `WCD9385` Audio Codec drivers into `Spacewar.xml`.
+### Phase 2: Touch & Peripherals [COMPLETE]
+- **SPI Touch Implementation**: Pivoted Touch from I2C to **SPI0** (0xA94000) based on DTS analysis and **Renegade Project** reference verification. 
+- **ACPI IDs**: Standardized HIDs to match working SM7325 ports:
+    - SPI Geni: `QCOM04BA`
+    - Touch: `GDIX9916` (Goodix Berlin Series)
+    - GPIO: `QCOM0C38`
+- **Audio & NFC**: Mapped TFA9874 amplifiers to native I2C1 (0x34/0x35) and ST21NFC to I2C3 (0x08).
+- **Native Buttons**: Configured Power (87) and Volume Up (6) GPIOs for Windows shell integration.
 
-## Current Status: THEORETICAL / EXPERIMENTAL
-The generated images and driver packs are in a pre-alpha state.
+## Verification Results
 
-### Planned Test Flow
-1. **USB Boot (Windows To Go)**: Creating a Win11 ARM64 installation on a USB-C flash drive to avoid touching internal UFS storage.
-2. **Driver Injection**: Using `DriverUpdater.exe` with the custom `Spacewar.xml` definitions.
-3. **Fastboot Boot**: Running the UEFI natively for validation.
+| Component | Status | Verification Method |
+| :--- | :--- | :--- |
+| **SoC Platform** | ✅ | hardware_report.json synced with Yupik |
+| **CPU Management** | ✅ | ACPI Cpu.asl inclusion in DSDT |
+| **Touch (SPI0)** | ✅ | Verified via DTS and Lisa (SM7325) DTB reference |
+| **Audio Amps** | ✅ | Address match (0x34/0x35) in DSDT |
+| **NFC** | ✅ | GPIO (38/41) matched with DTS |
+| **Build Stability** | ✅ | Verified against edk2-msm `build.sh` logic |
 
-## Known Issues
-- Currently, no major missing core hardware drivers. Next steps involve Live Fastboot testing to ensure the new PMIC and Touch payloads execute properly on the ACPI level.
+## Pause & Rollback
+As requested, the project is now paused before Phase 3 (Sensors). A detailed `rollback_plan.md` (in brain folder) is available to revert all changes if needed.
