@@ -106,9 +106,22 @@ jobs:
       - name: Build UEFI
         run: |
           cd edk2-msm
-          ./build.sh -d spacewar -r RELEASE \
-            -D USE_UART=1 \
-            -D AB_SLOTS_SUPPORT=TRUE
+
+          # build.sh -D parametrelerini destekliyor mu kontrol et
+          echo "=== build.sh yardim ==="
+          ./build.sh --help 2>&1 | head -20 || true
+
+          echo "=== Build baslıyor ==="
+          # USE_UART build.sh tarafından otomatik -D USE_UART=0 olarak geçiliyor
+          # Bunu override etmek için build.sh'i patch et
+          sed -i 's/-D USE_UART=0/-D USE_UART=1/g' build.sh
+          echo "build.sh USE_UART patch:"
+          grep "USE_UART" build.sh || echo "USE_UART bulunamadi"
+
+          ./build.sh -d spacewar -r RELEASE
+
+          echo "=== Build sonucu ==="
+          ls -la boot-spacewar.img 2>/dev/null || (echo "boot-spacewar.img YOK"; exit 1)
 
       - name: Verify build
         run: |
