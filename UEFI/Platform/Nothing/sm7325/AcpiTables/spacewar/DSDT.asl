@@ -52,19 +52,31 @@ DefinitionBlock ("DSDT.aml", "DSDT", 2, "MSFT", "SPACEWAR", 1)
   {
     Name (_HID, "QCOM0598")
     Name (_UID, 0)
-    Name (_CRS, ResourceTemplate () {
-      Memory32Fixed (ReadWrite, 0x0A600000, 0x00100000)
-    })
+    Name (_S0W, 3)
+    Method (_CRS, 0, NotSerialized) {
+      Name (RBUF, ResourceTemplate () {
+        Memory32Fixed (ReadWrite, 0x0A600000, 0x000FFFFF)
+        Interrupt (ResourceConsumer, Level, ActiveHigh, Shared, ,, ) { 165 }
+        Interrupt (ResourceConsumer, Level, ActiveHigh, SharedAndWake, ,, ) { 162 }
+        Interrupt (ResourceConsumer, Level, ActiveHigh, SharedAndWake, ,, ) { 529 }
+      })
+      Return (RBUF)
+    }
   }
 
   // UFS 3.1
   Device (UFS0)
   {
-    Name (_HID, "QCOM0240")
+    Name (_HID, "QCOM24A5")
     Name (_UID, 0)
-    Name (_CRS, ResourceTemplate () {
-      Memory32Fixed (ReadWrite, 0x01D84000, 0x00003000)
-    })
+    Name (_CCA, 1)
+    Method (_CRS, 0, NotSerialized) {
+      Name (RBUF, ResourceTemplate () {
+        Memory32Fixed (ReadWrite, 0x01D84000, 0x0001C000)
+        Interrupt (ResourceConsumer, Level, ActiveHigh, Exclusive, ,, ) { 297 }
+      })
+      Return (RBUF)
+    }
   }
 
   // WiFi QCA6750 [BC]
