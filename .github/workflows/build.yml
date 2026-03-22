@@ -5,6 +5,7 @@ on:
   push:
     paths:
       - 'UEFI/**'
+      - 'DTB/**'
 
 jobs:
   build:
@@ -30,41 +31,48 @@ jobs:
           git clone https://github.com/edk2-porting/edk2-msm.git \
             --recursive --depth=1 edk2-msm
 
-      - name: Build spacewar DTB from CrDroid kernel DT
+      - name: Prepare Yupik DTB
         run: |
-          # CrDroid'in spacewar kernel DT'si - zaten çalışan kaynak
-          git clone --depth=1 \
-            https://github.com/crdroidandroid/android_device_nothing_Spacewar.git \
-            -b 14.0 crdroid_device
-
-          # Spacewar DTB'yi bul
-          echo "=== Mevcut DTB dosyaları ==="
-          find crdroid_device -name "*.dtb" | head -10
-
-          DTB=$(find crdroid_device -name "*spacewar*.dtb" \
-                -o -name "*sm7325*spacewar*.dtb" 2>/dev/null | head -1)
-
-          if [ -n "$DTB" ]; then
-            echo "DTB bulundu: $DTB"
-            cp "$DTB" spacewar.dtb
+          if [ -f "DTB/spacewar-yupik.dtb" ]; then
+            cp DTB/spacewar-yupik.dtb spacewar.dtb
+            echo "Yupik DTB repodaki kullanildi"
           else
-            echo "Pre-built DTB yok, ExTV kernel DT'sinden derleniyor..."
-            git clone --depth=1 \
-              https://github.com/ExTV/android_kernel_devicetree_nothing_sm7325.git \
-              kernel_dt
-            DTS=$(find kernel_dt -name "*spacewar*.dts" \
-                  -o -name "*yupik*spacewar*.dts" 2>/dev/null | head -1)
-            if [ -n "$DTS" ]; then
-              echo "DTS bulundu: $DTS"
-              dtc -I dts -O dtb -o spacewar.dtb "$DTS" 2>/dev/null || \
-                cp edk2-msm/Platform/Xiaomi/sm7325/FdtBlob_compat/lisa.dtb spacewar.dtb
-            else
-              echo "DTS bulunamadı, lisa.dtb fallback kullanılıyor"
-              cp edk2-msm/Platform/Xiaomi/sm7325/FdtBlob_compat/lisa.dtb spacewar.dtb
-            fi
+            cp edk2-msm/Platform/Xiaomi/sm7325/FdtBlob_compat/lisa.dtb spacewar.dtb
+            echo "lisa.dtb fallback kullanildi"
           fi
-
-          ls -la spacewar.dtb
+          python3 - <<'EOF'
+          import struct, sys
+          with open('spacewar.dtb', 'rb') as f:
+              dtb = f.read()
+          magic = struct.unpack_from('>I', dtb, 0)[0]
+          size  = struct.unpack_from('>I', dtb, 4)[0]
+          if magic != 0xD00DFEED:
+              print(f'HATA: Gecersiz DTB magic: 0x{magic:08X}')
+              sys.exit(1)
+          print(f'DTB OK: {size} bytes = {size/1024:.1f} KB')
+          off_struct  = struct.unpack_from('>I', dtb, 8)[0]
+          off_strings = struct.unpack_from('>I', dtb, 12)[0]
+          FDT_BEGIN_NODE=1; FDT_END_NODE=2; FDT_PROP=3; FDT_END=9
+          pos=off_struct; depth=0
+          try:
+              while pos < len(dtb)-4:
+                  t = struct.unpack_from('>I', dtb, pos)[0]; pos+=4
+                  if t == FDT_BEGIN_NODE:
+                      ne=dtb.index(b'\x00',pos); depth+=1; pos=ne+1; pos=(pos+3)&~3
+                  elif t == FDT_PROP:
+                      pl=struct.unpack_from('>I',dtb,pos)[0]
+                      no=struct.unpack_from('>I',dtb,pos+4)[0]
+                      pne=dtb.index(b'\x00',off_strings+no)
+                      pname=dtb[off_strings+no:pne].decode('ascii','replace')
+                      pval=dtb[pos+8:pos+8+pl]; pos+=8+pl; pos=(pos+3)&~3
+                      if depth==1 and pname in ('model','compatible'):
+                          print(f'  {pname}: {pval.replace(b"\x00",b" ").decode("ascii","replace").strip()}')
+                  elif t == FDT_END_NODE:
+                      depth-=1
+                      if depth==0: break
+                  elif t == FDT_END: break
+          except: pass
+          EOF
 
       - name: Copy Spacewar files into edk2-msm
         run: |
@@ -81,10 +89,8 @@ jobs:
              edk2-msm/Platform/Nothing/sm7325/spacewar.fdf.inc
           cp UEFI/Platform/Nothing/sm7325/AcpiTables/spacewar/DSDT.asl \
              edk2-msm/Platform/Nothing/sm7325/AcpiTables/spacewar/DSDT.asl
-
           cp edk2-msm/Platform/Xiaomi/sm7325/FdtBlob/sm7325-generic-msd.dtb \
              edk2-msm/Platform/Nothing/sm7325/FdtBlob/sm7325-generic-msd.dtb
-
           cp spacewar.dtb \
              edk2-msm/Platform/Nothing/sm7325/FdtBlob_compat/spacewar.dtb
 
@@ -95,30 +101,74 @@ jobs:
         run: |
           iasl -p edk2-msm/Platform/Nothing/sm7325/AcpiTables/spacewar/DSDT \
                edk2-msm/Platform/Nothing/sm7325/AcpiTables/spacewar/DSDT.asl
-          ls -la edk2-msm/Platform/Nothing/sm7325/AcpiTables/spacewar/
 
       - name: Build UEFI
         run: |
           cd edk2-msm
-          ./build.sh -d spacewar -r RELEASE -D USE_UART=1
+          ./build.sh -d spacewar -r RELEASE \
+            -D USE_UART=1 \
+            -D AB_SLOTS_SUPPORT=TRUE
+
+      - name: Verify build
+        run: |
+          python3 - <<'EOF'
+          import subprocess, struct, os, sys, lzma
+
+          img = 'edk2-msm/boot-spacewar.img'
+          if not os.path.exists(img):
+              print("HATA: boot-spacewar.img bulunamadi!")
+              sys.exit(1)
+          with open(img, 'rb') as f:
+              boot = f.read()
+          ks = struct.unpack_from('<I', boot, 8)[0]
+          print(f'Boot image: {len(boot)/1024/1024:.2f} MB')
+          with open('/tmp/v.gz', 'wb') as f:
+              f.write(boot[2048:2048+ks])
+          r = subprocess.run(['gunzip','-c','-f','/tmp/v.gz'], capture_output=True)
+          d = r.stdout
+          dtb_magic = bytes([0xd0,0x0d,0xfe,0xed])
+          dtb_pos = d.rfind(dtb_magic)
+          if dtb_pos > 0:
+              dtb_size = struct.unpack_from('>I', d, dtb_pos+4)[0]
+              print(f'DTB: {dtb_size/1024:.1f} KB')
+          lzma_data = d[136+0xBDD8:]
+          try:
+              dec = lzma.decompress(lzma_data, format=lzma.FORMAT_ALONE)
+              checks = [
+                  ('SimpleInit',   b'SimpleInit'),
+                  ('KernelFdtDxe', b'KernelFdt'),
+                  ('SimpleFbDxe',  b'SimpleFbDxe'),
+                  ('USE_UART=1',   b'SerialPortWrite'),
+                  ('Boot menusu',  b'Boot Android'),
+              ]
+              for name, kw in checks:
+                  print(f'{"OK" if kw in dec else "EKSIK"}: {name}')
+          except Exception as e:
+              print(f'LZMA hatasi: {e}')
+          EOF
 
       - name: Upload boot image
         uses: actions/upload-artifact@v4
         with:
           name: boot-spacewar-${{ github.run_number }}
           path: edk2-msm/boot-spacewar.img
-          if-no-files-found: warn
+          if-no-files-found: error
 
       - name: Create Release
         if: github.ref == 'refs/heads/main'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: build-${{ github.run_number }}
-          name: "Spacewar UEFI Build #${{ github.run_number }}"
+          name: "Spacewar UEFI Build #${{ github.run_number }} (Yupik DTB + UART)"
           body: |
             ## WOA-Spacewar UEFI Build #${{ github.run_number }}
             **Commit:** ${{ github.sha }}
-            ### Test (safe - cihaza hiçbir şey yazılmaz)
+            ### Degisiklikler
+            - Yupik QRD DTB (SM7325 PMIC uyumlu)
+            - USE_UART=1 (UART debug aktif)
+            - SimpleInit boot menusu
+            - AB slot destegi
+            ### Test
             ```bash
             fastboot boot boot-spacewar.img
             ```
