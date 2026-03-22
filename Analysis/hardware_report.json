@@ -7,7 +7,7 @@
     "kernel": "5.4.x-mysellysenpai (CrDroid)",
     "generator": "analyze_hardware.py v4 \u2014 github-actions[bot]",
     "readable_url": "https://raw.githubusercontent.com/aliss32/woa-spacewar/main/Analysis/hardware_report.json",
-    "updated_at": "2026-03-22T18:51:04.522176Z",
+    "updated_at": "2026-03-22T23:48:01.449915Z",
     "source_commits": {
       "crdroid_device": "794133f",
       "kernel_dt": "a5ef406",
@@ -22,7 +22,7 @@
     "kernel_pagesize": "4096",
     "boot_header_version": "3",
     "ramdisk": "LZ4",
-    "platform": "yupik",
+    "platform": "lahaina",
     "bootloader_name": "Spacewar",
     "cpu_variant": "cortex-a76",
     "arch_variant": "armv8-2a-dotprod",
@@ -45,51 +45,51 @@
   "KernelDT": {
     "display_width": "1080",
     "display_height": "2400",
-    "display_fps": "60",
+    "display_fps": "120",
     "framebuffer_base": "0xe1000000",
     "dsc_enabled": "false",
     "panel_chips": [
       "RM692E5"
     ],
     "touch_ic": [
-      "Goodix GT9916S (Berlin)"
+      "TODO"
     ],
-    "touch_i2c_addr": "SPI0 (Native)",
-    "touch_reset_gpio": "105",
-    "touch_irq_gpio": "81",
+    "touch_i2c_addr": "TODO",
+    "touch_reset_gpio": "TODO",
+    "touch_irq_gpio": "TODO",
     "fingerprint_ic": [
-      "Goodix Optical"
+      "TODO"
     ],
     "fingerprint_type": "optical_udfps",
     "audio_codec": [
-      "qcom,wcd938x-codec",
+      "qcom,wcd938x-slave",
       "qcom,wcd937x-slave",
-      "qcom,wcd937x-codec",
-      "qcom,wcd938x-slave"
+      "qcom,wcd938x-codec",
+      "qcom,wcd937x-codec"
     ],
-    "has_tfa9874": true,
+    "has_tfa9874": false,
     "pmic_chips": [
-      "qcom,pm8350c-flash-led",
-      "qcom,pmk8350-gpio",
-      "qcom,pm8350b-gpio",
-      "qcom,lcdb-pm7325b",
       "qcom,pm7325b-gpio",
-      "qcom,pm7325-gpio",
-      "qcom,pmk8350-rtc",
-      "qcom,pm8350-gpio",
+      "qcom,lcdb-pm7325b",
+      "qcom,pm7325b-spmi-wled",
+      "qcom,pm8350c-flash-led",
+      "qcom,pm8350b-gpio",
       "qcom,pm8350c-gpio",
-      "qcom,pm7325b-spmi-wled"
+      "qcom,pmk8350-rtc",
+      "qcom,pmk8350-gpio",
+      "qcom,pm8350-gpio",
+      "qcom,pm7325-gpio"
     ],
     "nfc_ic": [
-      "ST21NFC"
+      "TODO"
     ],
     "vibrator_ic": [
-      "AW2016 + AW210xx"
+      "TODO"
     ],
     "uart_nodes": [],
     "usb_controller": "a600000.dwc3",
-    "power_key_gpio": "87",
-    "vol_up_gpio": "6",
+    "power_key_gpio": "TODO",
+    "vol_up_gpio": "TODO",
     "vol_down_gpio": "TODO"
   },
   "UEFI_Values": {
@@ -101,7 +101,7 @@
     "FRAMEBUFFER_BASE": "0xe1000000",
     "DISPLAY_WIDTH": "1080",
     "DISPLAY_HEIGHT": "2400",
-    "DISPLAY_FPS": "60",
+    "DISPLAY_FPS": "120",
     "DISPLAY_DENSITY": "420",
     "PANEL_CHIPS": [
       "RM692E5"
@@ -111,25 +111,25 @@
     "WIFI_MODULE": "qca_cld3_qca6750.ko",
     "WIFI_6E": "true",
     "AUDIO_CODEC": [
-      "qcom,wcd938x-codec",
+      "qcom,wcd938x-slave",
       "qcom,wcd937x-slave",
-      "qcom,wcd937x-codec",
-      "qcom,wcd938x-slave"
+      "qcom,wcd938x-codec",
+      "qcom,wcd937x-codec"
     ],
     "SPEAKER_AMP": [
       "TODO"
     ],
     "PMIC_CHIPS": [
-      "qcom,pm8350c-flash-led",
-      "qcom,pmk8350-gpio",
-      "qcom,pm8350b-gpio",
-      "qcom,lcdb-pm7325b",
       "qcom,pm7325b-gpio",
-      "qcom,pm7325-gpio",
-      "qcom,pmk8350-rtc",
-      "qcom,pm8350-gpio",
+      "qcom,lcdb-pm7325b",
+      "qcom,pm7325b-spmi-wled",
+      "qcom,pm8350c-flash-led",
+      "qcom,pm8350b-gpio",
       "qcom,pm8350c-gpio",
-      "qcom,pm7325b-spmi-wled"
+      "qcom,pmk8350-rtc",
+      "qcom,pmk8350-gpio",
+      "qcom,pm8350-gpio",
+      "qcom,pm7325-gpio"
     ],
     "TOUCH_IC": [
       "TODO"
