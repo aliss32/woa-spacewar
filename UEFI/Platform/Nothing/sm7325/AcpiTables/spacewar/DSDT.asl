@@ -81,20 +81,25 @@ DefinitionBlock ("DSDT.aml", "DSDT", 2, "MSFT", "SPACEWAR", 1)
   Device (AUD0) { Name (_HID, "QCOM0B27") Name (_UID, 0) }
   Device (AMP0) { Name (_HID, "TFA09874") Name (_UID, 0) }
 
-  // PMICs - Generic Qualcomm IDs
-  Device (PMI0) { Name (_HID, "QCOM0C57") Name (_UID, 0) }
-  Device (PMI1) { Name (_HID, "QCOM0C58") Name (_UID, 1) }
-  Device (PMI2) { Name (_HID, "QCOM0C59") Name (_UID, 2) }
-  Device (PMI3) { Name (_HID, "QCOM0C5A") Name (_UID, 3) }
+  // PMICs - Native SM7325 (PM7325 family)
+  // Matches: qcpmic7280.inf -> ACPI\QCOM0A2B (PM7325 main)
+  Device (PMI0) { Name (_HID, "QCOM0A2B") Name (_UID, 0) }
+  // Matches: QcPmicApps7280.inf -> ACPI\QCOM0A2C (PMK7325 Apps)
+  Device (PMI1) { Name (_HID, "QCOM0A2C") Name (_UID, 1) }
+  // Matches: qcpmicgpio7280.inf -> ACPI\QCOM0A2D (PMIC GPIO)
+  Device (PMI2) { Name (_HID, "QCOM0A2D") Name (_UID, 2) }
+  // Matches: qcpmicglink7280.inf -> ACPI\QCOM0A8E (PMIC GLink / PM8350B)
+  Device (PMI3) { Name (_HID, "QCOM0A8E") Name (_UID, 3) }
 
   // Battery
   Device (BAT0) { Name (_HID, EISAID ("PNP0C0A")) Name (_UID, 0) }
 
   // Touch - Goodix GT9895 I2C [NATIVE]
   // Path: /sys/devices/platform/soc/994000.i2c/i2c-9/9-005d
+  // HID matches: vhidmini.inf -> ACPI\GDGT9897
   Device (TCH0)
   {
-    Name (_HID, "GDIX0001")
+    Name (_HID, "GDGT9897")
     Name (_CID, "PNP0C50")
     Name (_UID, 0)
     Method (_CRS, 0, Serialized)
