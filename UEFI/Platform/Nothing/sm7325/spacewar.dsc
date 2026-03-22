@@ -18,7 +18,7 @@
 
 [PcdsFixedAtBuild.common]
   # Display - 1080x2400 @ 120Hz [ADB confirmed]
-  # PcdMipiFrameBufferAddress|0xE1000000 sm7325.dsc'de zaten tanımlı
+  # PcdMipiFrameBufferAddress|0xE1000000 already defined in sm7325.dsc - do not redefine here
   gQcomTokenSpaceGuid.PcdMipiFrameBufferWidth|1080
   gQcomTokenSpaceGuid.PcdMipiFrameBufferHeight|2400
   gSimpleInitTokenSpaceGuid.PcdGuiDefaultDPI|420
