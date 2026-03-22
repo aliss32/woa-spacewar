@@ -21,6 +21,11 @@
   <!-- Audio (Platform) -->
   <Package Id="Platform.Audio" SourceDirectory="Platform\Drivers\Audio" />
 
+  <!-- USB (Platform) -->
+  <Package Id="Platform.USB" SourceDirectory="Platform\Drivers\USB" />
+  <Package Id="Platform.USBFn" SourceDirectory="Platform\Drivers\USBFn" />
+  <Package Id="Platform.USBHost" SourceDirectory="Platform\Drivers\USBHost" />
+
   <!-- ============ GPU DRIVER (Adreno 642L native) ============ -->
   <Package Id="Graphics.GPU.Adreno642L" SourceDirectory="components\QC7325\Graphics\GRAPHICS.SOC_QC7325.SPACEWAR_DESKTOP" />
 
