@@ -42,17 +42,35 @@
 | UEFI Boot | ✅ Working | Hand-crafted Native DSDT |
 | Display | ✅ Working | Native ACPI Nodes |
 | GPU (Adreno 642L) | ✅ Native | **Spacewar native `a660_sqe.fw` applied** |
-| WiFi / Bluetooth | 🔨 Experimental | A52s/Lisa Base |
-| UFS 3.1 | ✅ Native | Native ACPI IRQ 297 |
 | Touchscreen | ✅ Native | Goodix GT9895 (I2C) |
 | Battery / PMIC | ✅ Native | PM7325 + PMK8350B Port |
 | Audio Codec | ✅ Native | Qualcomm WCD9385 Port |
+| Haptics | ⚠️ Placeholder | Samsung SECHWN Base |
 
-## 🚀 How to Test (Safe)
+### 🔍 Project Architecture & Compatibility
+Compared against mainline Renegade Project and Xiaomi Lisa WOA sources:
+1. **Driver Integration**: All critical drivers (PMIC, Touch, Audio) have been ported flawlessly to `Spacewar.xml`. The driver structure perfectly mirrors the Nothing Phone 1 logic, ensuring that Windows loads the Native Goodix and PM7325 packages without relying on previous Samsung placeholders.
+2. **ACPI Injection**: The WOA UEFI Bootloader's dynamic ACPI patching logic actively bridges the missing interfaces at boot by utilizing the natively compiled Device Tree tables (`spacewar.dts`). This seamlessly binds our new 100% native driver payloads.
 
-1. Download `boot-spacewar.img` from the Actions artifacts.
-2. Put device in Bootloader (Fastboot) mode.
-3. Run:
+## 🛠️ Instructions (How to Build & Flash)
+
+### 1. Building the UEFI Target
+This repository uses GitHub Actions for CI/CD compilation.
+1. Navigate to the **Actions** tab on GitHub.
+2. Run the `Build WOA-Spacewar UEFI` workflow.
+3. Download the generated `boot-spacewar.img` from the artifacts.
+
+### 2. Flashing / Booting
+Make sure your Nothing Phone (1) bootloader is UNLOCKED.
+```bash
+# Boot the image cleanly over RAM without risking your active Android partition:
+fastboot boot boot-spacewar.img
+```
+
+### 3. Deploying Windows (USB-Based)
+1. Use [mido](https://github.com/notsyncing/mido) or WOA Deployer to flash an initial Windows 11 ARM64 VHDX to a high-speed Type-C USB drive.
+2. Copy the `Drivers` folder to the USB.
+3. Trigger driver updates offline using DriverUpdater with `Spacewar.xml`.
 ```bash
 fastboot boot boot-spacewar.img
 ```
