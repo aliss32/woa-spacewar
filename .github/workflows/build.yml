@@ -66,7 +66,8 @@ jobs:
                       pname=dtb[off_strings+no:pne].decode('ascii','replace')
                       pval=dtb[pos+8:pos+8+pl]; pos+=8+pl; pos=(pos+3)&~3
                       if depth==1 and pname in ('model','compatible'):
-                          print(f'  {pname}: {pval.replace(b"\x00",b" ").decode("ascii","replace").strip()}')
+                          val_str = pval.replace(b"\x00", b" ").decode("ascii","replace").strip()
+                          print("  " + pname + ": " + val_str)
                   elif t == FDT_END_NODE:
                       depth-=1
                       if depth==0: break
