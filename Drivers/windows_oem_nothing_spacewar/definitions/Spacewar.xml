@@ -9,8 +9,8 @@
 
   <!-- ============ PLATFORM DRIVERS (Generic SM7325) ============ -->
 
-  <!-- Bluetooth: QCA6750 (same across all SM7325 devices) -->
-  <Package Id="Platform.Bluetooth" SourceDirectory="Platform\Drivers\Bluetooth" />
+  <!-- Bluetooth: QCA6750 -->
+  <Package Id="Platform.Bluetooth" SourceDirectory="Platform\BTFMUART_HSP" />
 
   <!-- Wi-Fi: QCA6750 WLAN -->
   <Package Id="Platform.WLAN" SourceDirectory="Platform\Drivers\WLAN" />
@@ -18,29 +18,24 @@
   <!-- Cellular Modem -->
   <Package Id="Platform.Cellular" SourceDirectory="Platform\Drivers\Cellular" />
 
+  <!-- Audio (Platform) -->
+  <Package Id="Platform.Audio" SourceDirectory="Platform\Drivers\Audio" />
+
   <!-- ============ GPU DRIVER (Adreno 642L native) ============ -->
-  <!--
-    This package combines:
-    - Lisa QC7325 GPU userspace DLLs (qcdx, OpenCL, Vulkan, CB, libgsluser)
-    - Spacewar-native GPU microcode: a660_sqe.fw (Adreno 642L GFX firmware)
-    - qcvss6490.mbn                  (GPU Video Subsystem microcode)
-    The INF (qcdx6490.inf) supports 49 Snapdragon device sections,
-    covering VEN_QCOM DEV_0E36 and related SM7325 ACPI hardware IDs.
-  -->
   <Package Id="Graphics.GPU.Adreno642L" SourceDirectory="components\QC7325\Graphics\GRAPHICS.SOC_QC7325.SPACEWAR_DESKTOP" />
 
   <!-- ============ DEVICE-SPECIFIC DRIVERS (Nothing Phone 1) ============ -->
 
-  <!-- Battery / Charging: Nothing Phone 1 uses Qualcomm PMIC + BMS -->
-  <Package Id="Device.Battery" SourceDirectory="Drivers\Battery" />
-
-  <!-- Haptics: Nothing Phone 1 vibration motor -->
+  <!-- Haptics -->
   <Package Id="Device.Haptics" SourceDirectory="Drivers\Haptics" />
 
-  <!-- PMIC (SM5714 is A52s specific; Spacewar uses PM7325 but shares many interfaces) -->
-  <Package Id="Device.PMIC" SourceDirectory="Drivers\SM5714Pmic" />
+  <!-- Audio (Device Specific) -->
+  <Package Id="Device.Audio" SourceDirectory="Drivers\Audio" />
 
-  <!-- Touch: Capacitive touchscreen (post-boot calibration TBD) -->
+  <!-- PMIC (Native Qualcomm) -->
+  <Package Id="Device.PMIC" SourceDirectory="Drivers\QcPmic" />
+
+  <!-- Touch -->
   <Package Id="Device.Touch" SourceDirectory="Drivers\Touch" />
 
 </Packages>
