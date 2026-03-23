@@ -1,18 +1,24 @@
-# Differential Diagnostics and Negative Hypothesis Testing 
+# DIAGNOSTIC ANALYSIS
 
-## Introduction
-Differential diagnostics allows healthcare providers to distinguish between two or more conditions that share similar signs or symptoms. In the context of software testing, it can be seen as a method of determining what is functioning correctly and what is not by comparing to a baseline or a known state.
+## Comprehensive Negative Hypotheses
+1. **Device-Specific Issues**: The Nothing Phone 1 may have unique hardware limitations that manifest differently under Windows 11. 
+2. **Compatibility Problems**: Certain Windows 11 drivers may not fully support the Nothing Phone 1, leading to performance issues.
+3. **Software Conflicts**: Pre-installed applications on Nothing Phone 1 might conflict with Windows 11 functionalities.
+4. **Insufficient Resources**: Windows 11 may require more RAM or CPU performance than what the Nothing Phone 1 can provide, affecting its diagnosis capability.
 
-## Negative Hypothesis Testing
-Negative hypothesis testing involves the development of a hypothesis that negates the presence of a condition or feature. This testing can be particularly useful in confirming the absence of defects or unexpected behaviors in the software applications.
+## Component-by-Component Failure Analysis
+1. **Display**: Check for resolution compatibility and refresh rate settings; artifacts may occur if mismatched.
+2. **Battery**: Observe battery consumption under stress; Windows 11 might overburden the battery with background tasks.
+3. **Connectivity**: Evaluate Wi-Fi and Bluetooth performance as Windows 11 might behave differently than expected.
+4. **Storage**: Ensure there’s sufficient storage available for apps and updates, as Windows 11 performs differently under low space.
+5. **Audio**: Assess audio outputs and inputs as Windows 11 may interpret drivers differently than Android environments.
 
-## Application to Windows 11 on Nothing Phone 1
-When testing the interaction of Windows 11 on Nothing Phone 1, utilizing differential diagnostics can help identify performance issues or usability concerns specific to this combination of hardware and software. By applying negative hypothesis testing, testers can assert that certain functionalities are not impaired or that performance metrics fall within expected ranges.
+## Differential Diagnostics for Windows 11 on Nothing Phone 1
+- **Step 1**: Conduct baseline performance tests using resource management tools in Windows 11.
+- **Step 2**: Compare functionality under a multiple device setup to isolate issues specific to Nothing Phone 1.
+- **Step 3**: Perform driver updates and check for their impact on overall performance.
+- **Step 4**: Document visual artifacts or performance lags to distinguish between hardware failure and software bugs.
 
-### Benefits
-- Clear distinction between normal and abnormal behavior.
-- Focused debugging and analysis processes.
-- Enhanced confidence in software stability and user experience based on factual evidence.
 
-### Conclusion
-In conclusion, integrating differential diagnostics and negative hypothesis testing into the quality assurance practices for software such as Windows 11 on Nothing Phone 1 is essential in ensuring optimal performance and user satisfaction.
+### Notes
+- Ensure that each of these components is tested under varied conditions to determine reliability and performance consistency.
