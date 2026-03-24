@@ -6,10 +6,11 @@ on:
     paths:
       - 'UEFI/**'
       - 'DTB/**'
+      - '.github/workflows/build.yml'
 
 jobs:
   build:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
 
     steps:
       - name: Checkout
@@ -20,7 +21,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y \
             build-essential uuid-dev iasl git nasm \
-            python3 python3-distutils python3-pil python3-git \
+            python3 python3-pil python3-git \
             gcc-aarch64-linux-gnu clang llvm lld \
             mono-devel acpica-tools gettext \
             libsdl2-2.0-0 libsdl2-dev abootimg \
@@ -35,10 +36,10 @@ jobs:
         run: |
           if [ -f "DTB/spacewar-yupik.dtb" ]; then
             cp DTB/spacewar-yupik.dtb spacewar.dtb
-            echo "Yupik DTB repodaki kullanildi"
+            echo "Using Yupik DTB from repo"
           else
             cp edk2-msm/Platform/Xiaomi/sm7325/FdtBlob_compat/lisa.dtb spacewar.dtb
-            echo "lisa.dtb fallback kullanildi"
+            echo "Using lisa.dtb fallback"
           fi
           python3 - <<'EOF'
           import struct, sys
@@ -47,7 +48,7 @@ jobs:
           magic = struct.unpack_from('>I', dtb, 0)[0]
           size  = struct.unpack_from('>I', dtb, 4)[0]
           if magic != 0xD00DFEED:
-              print(f'HATA: Gecersiz DTB magic: 0x{magic:08X}')
+              print(f'ERROR: Invalid DTB magic: 0x{magic:08X}')
               sys.exit(1)
           print(f'DTB OK: {size} bytes = {size/1024:.1f} KB')
           off_struct  = struct.unpack_from('>I', dtb, 8)[0]
@@ -88,14 +89,19 @@ jobs:
              edk2-msm/Platform/Nothing/sm7325/spacewar.dsc
           cp UEFI/Platform/Nothing/sm7325/spacewar.fdf.inc \
              edk2-msm/Platform/Nothing/sm7325/spacewar.fdf.inc
+
+          # Copy ALL ACPI tables (DSDT.asl + Cpu.asl)
           cp UEFI/Platform/Nothing/sm7325/AcpiTables/spacewar/DSDT.asl \
              edk2-msm/Platform/Nothing/sm7325/AcpiTables/spacewar/DSDT.asl
+          cp UEFI/Platform/Nothing/sm7325/AcpiTables/spacewar/Cpu.asl \
+             edk2-msm/Platform/Nothing/sm7325/AcpiTables/spacewar/Cpu.asl
+
           cp edk2-msm/Platform/Xiaomi/sm7325/FdtBlob/sm7325-generic-msd.dtb \
              edk2-msm/Platform/Nothing/sm7325/FdtBlob/sm7325-generic-msd.dtb
           cp spacewar.dtb \
              edk2-msm/Platform/Nothing/sm7325/FdtBlob_compat/spacewar.dtb
 
-          echo "=== Kopyalanan dosyalar ==="
+          echo "=== Copied files ==="
           find edk2-msm/Platform/Nothing -type f | sort
 
       - name: Compile DSDT.asl to DSDT.aml
@@ -107,21 +113,16 @@ jobs:
         run: |
           cd edk2-msm
 
-          # build.sh -D parametrelerini destekliyor mu kontrol et
-          echo "=== build.sh yardim ==="
-          ./build.sh --help 2>&1 | head -20 || true
-
-          echo "=== Build baslıyor ==="
-          # USE_UART build.sh tarafından otomatik -D USE_UART=0 olarak geçiliyor
-          # Bunu override etmek için build.sh'i patch et
+          echo "=== Build starting ==="
+          # Patch USE_UART for debug output
           sed -i 's/-D USE_UART=0/-D USE_UART=1/g' build.sh
           echo "build.sh USE_UART patch:"
-          grep "USE_UART" build.sh || echo "USE_UART bulunamadi"
+          grep "USE_UART" build.sh || echo "USE_UART not found"
 
           ./build.sh -d spacewar -r RELEASE
 
-          echo "=== Build sonucu ==="
-          ls -la boot-spacewar.img 2>/dev/null || (echo "boot-spacewar.img YOK"; exit 1)
+          echo "=== Build result ==="
+          ls -la boot-spacewar.img 2>/dev/null || (echo "boot-spacewar.img MISSING"; exit 1)
 
       - name: Verify build
         run: |
@@ -130,7 +131,7 @@ jobs:
 
           img = 'edk2-msm/boot-spacewar.img'
           if not os.path.exists(img):
-              print("HATA: boot-spacewar.img bulunamadi!")
+              print("ERROR: boot-spacewar.img not found!")
               sys.exit(1)
           with open(img, 'rb') as f:
               boot = f.read()
@@ -153,12 +154,12 @@ jobs:
                   ('KernelFdtDxe', b'KernelFdt'),
                   ('SimpleFbDxe',  b'SimpleFbDxe'),
                   ('USE_UART=1',   b'SerialPortWrite'),
-                  ('Boot menusu',  b'Boot Android'),
+                  ('Boot menu',    b'Boot Android'),
               ]
               for name, kw in checks:
-                  print(f'{"OK" if kw in dec else "EKSIK"}: {name}')
+                  print(f'{"OK" if kw in dec else "MISSING"}: {name}')
           except Exception as e:
-              print(f'LZMA hatasi: {e}')
+              print(f'LZMA error: {e}')
           EOF
 
       - name: Upload boot image
@@ -173,15 +174,16 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: build-${{ github.run_number }}
-          name: "Spacewar UEFI Build #${{ github.run_number }} (Yupik DTB + UART)"
+          name: "Spacewar UEFI Build #${{ github.run_number }} (Yupik + UART + Sensors)"
           body: |
             ## WOA-Spacewar UEFI Build #${{ github.run_number }}
             **Commit:** ${{ github.sha }}
-            ### Degisiklikler
-            - Yupik QRD DTB (SM7325 PMIC uyumlu)
-            - USE_UART=1 (UART debug aktif)
-            - SimpleInit boot menusu
-            - AB slot destegi
+            ### Components
+            - Yupik QRD DTB (SM7325 PMIC compatible)
+            - USE_UART=1 (UART debug active)
+            - SimpleInit boot menu
+            - AB slot support
+            - Phase 3 sensor ACPI (BMI260, MMC5603, STK33911)
             ### Test
             ```bash
             fastboot boot boot-spacewar.img
