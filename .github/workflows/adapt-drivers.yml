@@ -1,14 +1,15 @@
-name: Adapt Lisa Drivers for Spacewar
+name: "[Deprecated] Adapt Lisa Drivers for Spacewar"
+
+# DEPRECATED: This workflow is superseded by native drivers in
+# Drivers/windows_oem_nothing_spacewar/. Kept for reference only.
+# Use build_drivers.yml for the current native driver build.
 
 on:
   workflow_dispatch:
-  push:
-    paths:
-      - 'Scripts/adapt_drivers.py'
 
 jobs:
   adapt:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
 
     steps:
       - name: Checkout
@@ -29,16 +30,5 @@ jobs:
       - name: Upload adapted drivers
         uses: actions/upload-artifact@v4
         with:
-          name: spacewar-drivers
+          name: spacewar-drivers-adapted
           path: Drivers/spacewar-adapted/
-
-      - name: Commit adapted drivers
-        run: |
-          git config user.name  "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add Drivers/
-          git diff --staged --quiet || \
-            git commit -m "drivers: adapt Lisa drivers for Spacewar [bot]"
-          git push
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
