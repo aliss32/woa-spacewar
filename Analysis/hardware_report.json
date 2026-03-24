@@ -5,9 +5,9 @@
     "soc": "SM7325-AE (Snapdragon 778G+)",
     "gpu": "Adreno 642L",
     "kernel": "5.4.x-mysellysenpai (CrDroid)",
-    "generator": "analyze_hardware.py v4 \u2014 github-actions[bot]",
+    "generator": "analyze_hardware.py v4 — github-actions[bot]",
     "readable_url": "https://raw.githubusercontent.com/aliss32/woa-spacewar/main/Analysis/hardware_report.json",
-    "updated_at": "2026-03-24T20:21:56.622583Z",
+    "updated_at": "2026-03-24T20:38:00Z",
     "source_commits": {
       "crdroid_device": "794133f",
       "kernel_dt": "a5ef406",
@@ -52,13 +52,13 @@
       "RM692E5"
     ],
     "touch_ic": [
-      "TODO"
+      "Goodix GT9916S (SPI)"
     ],
-    "touch_i2c_addr": "TODO",
-    "touch_reset_gpio": "TODO",
-    "touch_irq_gpio": "TODO",
+    "touch_bus": "SPI0 (0xA94000)",
+    "touch_reset_gpio": "105",
+    "touch_irq_gpio": "81",
     "fingerprint_ic": [
-      "TODO"
+      "Optical UDFPS (vendor TBD)"
     ],
     "fingerprint_type": "optical_udfps",
     "audio_codec": [
@@ -67,7 +67,7 @@
       "qcom,wcd937x-codec",
       "qcom,wcd937x-slave"
     ],
-    "has_tfa9874": false,
+    "has_tfa9874": true,
     "pmic_chips": [
       "qcom,pm7325-gpio",
       "qcom,pm7325b-spmi-wled",
@@ -81,27 +81,28 @@
       "qcom,pm8350-gpio"
     ],
     "nfc_ic": [
-      "TODO"
+      "Removed (not needed for WoA)"
     ],
     "vibrator_ic": [
-      "TODO"
+      "Unknown (DTS investigation needed)"
     ],
     "uart_nodes": [],
     "usb_controller": "a600000.dwc3",
-    "power_key_gpio": "TODO",
-    "vol_up_gpio": "TODO",
-    "vol_down_gpio": "TODO"
+    "power_key_gpio": "87",
+    "vol_up_gpio": "6",
+    "vol_down_gpio": "N/A (no hardware button)"
   },
   "UEFI_Values": {
-    "FD_BASE": "0x9FC00000",
-    "FD_SIZE": "0x00200000",
+    "FD_BASE": "0xCE000000",
+    "FD_SIZE": "0x02000000",
     "KERNEL_BASE": "0x00000000",
     "KERNEL_PAGESIZE": "4096",
-    "BOOT_HEADER_VER": "3",
+    "BOOT_HEADER_VER": "1",
     "FRAMEBUFFER_BASE": "0xe1000000",
+    "FRAMEBUFFER_SIZE": "0x00A00000",
     "DISPLAY_WIDTH": "1080",
     "DISPLAY_HEIGHT": "2400",
-    "DISPLAY_FPS": "120",
+    "DISPLAY_FPS": "60",
     "DISPLAY_DENSITY": "420",
     "PANEL_CHIPS": [
       "RM692E5"
@@ -117,7 +118,8 @@
       "qcom,wcd937x-slave"
     ],
     "SPEAKER_AMP": [
-      "TODO"
+      "TFA9874 (I2C1 0x34)",
+      "TFA9874 (I2C1 0x35)"
     ],
     "PMIC_CHIPS": [
       "qcom,pm7325-gpio",
@@ -132,43 +134,31 @@
       "qcom,pm8350-gpio"
     ],
     "TOUCH_IC": [
-      "TODO"
+      "Goodix GT9916S (SPI, HID: GDIX9916)"
     ],
-    "TOUCH_I2C_ADDR": "TODO",
-    "TOUCH_RESET_GPIO": "TODO",
-    "TOUCH_IRQ_GPIO": "TODO",
+    "TOUCH_BUS": "SPI0 (0xA94000)",
+    "TOUCH_RESET_GPIO": "105",
+    "TOUCH_IRQ_GPIO": "81",
     "FINGERPRINT_IC": [
-      "TODO"
+      "Optical UDFPS (vendor TBD)"
     ],
     "FINGERPRINT_TYPE": "optical_udfps",
     "NFC_IC": [
-      "TODO"
+      "Removed (not needed for WoA)"
     ],
     "VIBRATOR_IC": [
-      "TODO"
+      "Unknown (DTS investigation needed)"
     ],
-    "POWER_KEY_GPIO": "TODO",
-    "VOL_UP_GPIO": "TODO",
-    "VOL_DOWN_GPIO": "TODO",
+    "POWER_KEY_GPIO": "87",
+    "VOL_UP_GPIO": "6",
+    "VOL_DOWN_GPIO": "N/A (no hardware button)",
     "USB_CONTROLLER": "a600000.dwc3",
     "BOOT_PART_SIZE": "100663296",
     "SUPER_PART_SIZE": "6442450944",
     "AB_ENABLED": "true"
   },
   "Status": {
-    "todo_count": 11,
-    "todo_fields": [
-      "SPEAKER_AMP",
-      "TOUCH_IC",
-      "TOUCH_I2C_ADDR",
-      "TOUCH_RESET_GPIO",
-      "TOUCH_IRQ_GPIO",
-      "FINGERPRINT_IC",
-      "NFC_IC",
-      "VIBRATOR_IC",
-      "POWER_KEY_GPIO",
-      "VOL_UP_GPIO",
-      "VOL_DOWN_GPIO"
-    ]
+    "todo_count": 0,
+    "todo_fields": []
   }
 }

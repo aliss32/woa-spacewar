@@ -17,7 +17,7 @@ DefinitionBlock ("DSDT.aml", "DSDT", 2, "MSFT", "SPACEWAR", 1)
 {
   // Display [NATIVE]
   Name (FBAS, 0xE1000000)
-  Name (FBSZ, 0x00800000)
+  Name (FBSZ, 0x00A00000)
   Name (DSWI, 1080)
   Name (DSHI, 2400)
   Name (DSFR, 60)
@@ -27,7 +27,7 @@ DefinitionBlock ("DSDT.aml", "DSDT", 2, "MSFT", "SPACEWAR", 1)
     Name (_HID, "QCOM0001")
     Name (_UID, 0)
     Name (_CRS, ResourceTemplate () {
-      Memory32Fixed (ReadWrite, 0xE1000000, 0x00800000)
+      Memory32Fixed (ReadWrite, 0xE1000000, 0x00A00000)
     })
     
     // Windows Display Driver Refresh Rate Override

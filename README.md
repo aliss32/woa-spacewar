@@ -18,7 +18,7 @@
 - **Codename**: `spacewar`
 - **SoC**: Qualcomm Snapdragon 778G+ (SM7325-AE)
 - **RAM / Storage**: 8GB/12GB LPDDR5 — 128GB/256GB UFS 3.1
-- **Touch**: Goodix GT9895
+- **Touch**: Goodix GT9916S (SPI, HID: GDIX9916)
 
 ## 📊 Feature Status
 Nothing has been physically validated yet.
@@ -28,7 +28,7 @@ Nothing has been physically validated yet.
 | UEFI Boot | ⏳ Waiting for test |
 | Display | ⏳ Waiting for test |
 | GPU (Adreno 642L) | ⏳ Waiting for test |
-| Touchscreen (GT9895) | ⏳ Waiting for test |
+| Touchscreen (GT9916S SPI) | ⏳ Waiting for test |
 | Battery / PMIC (PM7325) | ⏳ Waiting for test |
 | Audio Codec (WCD9385) | ⏳ Waiting for test |
 | UFS & USB | ⏳ Waiting for test |
