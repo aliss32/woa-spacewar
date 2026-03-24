@@ -112,18 +112,6 @@ DefinitionBlock ("DSDT.aml", "DSDT", 2, "MSFT", "SPACEWAR", 1)
     })
   }
 
-  // NFC - ST21NFC [NATIVE]
-  Device (NFC0)
-  {
-    Name (_HID, "STM21NFC")
-    Name (_UID, 0)
-    Name (_CRS, ResourceTemplate () {
-      I2CSerialBus (0x0008, ControllerInitiated, 400000, AddressingMode7Bit, "\\_SB.I2C3", 0, ResourceConsumer, , )
-      GpioInt (Level, ActiveHigh, Exclusive, PullDown, 0, "\\_SB.GIO0", 0, ResourceConsumer, , ) { 41 } // IRQ
-      GpioIo (Exclusive, PullUp, 0, 0, IoRestrictionNone, "\\_SB.GIO0", 0, ResourceConsumer, , ) { 38 } // Reset
-    })
-  }
-
   // PMICs - Native SM7325
   Device (PMI0) { Name (_HID, "QCOM0A2B") Name (_UID, 0) }
   Device (PMI1) { Name (_HID, "QCOM0A2C") Name (_UID, 1) }
@@ -167,7 +155,6 @@ DefinitionBlock ("DSDT.aml", "DSDT", 2, "MSFT", "SPACEWAR", 1)
   // I2C Controllers
   Device (I2C0) { Name (_HID, "QCOM04A6") Name (_UID, 0) }
   Device (I2C1) { Name (_HID, "QCOM04A6") Name (_UID, 1) }
-  Device (I2C3) { Name (_HID, "QCOM04A6") Name (_UID, 3) }
 
   // SPI Controllers
   // SPI0 for Touchscreen
@@ -176,8 +163,8 @@ DefinitionBlock ("DSDT.aml", "DSDT", 2, "MSFT", "SPACEWAR", 1)
     Name (_HID, "QCOM04BA")
     Name (_UID, 0)
     Name (_CRS, ResourceTemplate () {
-      Memory32Fixed (ReadWrite, 0x00A94000, 0x00001000)
-      Interrupt (ResourceConsumer, Level, ActiveHigh, Shared, ,, ) { 601 }
+      Memory32Fixed (ReadWrite, 0x00A94000, 0x00004000)
+      Interrupt (ResourceConsumer, Level, ActiveHigh, Shared, ,, ) { 358 }
     })
   }
 
@@ -187,12 +174,22 @@ DefinitionBlock ("DSDT.aml", "DSDT", 2, "MSFT", "SPACEWAR", 1)
     Name (_HID, "QCOM0C38")
     Name (_UID, 0)
     Name (_CRS, ResourceTemplate () {
-      Memory32Fixed (ReadWrite, 0x00F100000, 0x00900000)
+      Memory32Fixed (ReadWrite, 0x0F100000, 0x00900000)
     })
   }
 
   // UART debug
   Device (UAR0) { Name (_HID, "QCOM2431") Name (_UID, 3) }
+
+  // Sensors Transport — SLPI via ADSP [Phase 3]
+  // Provides Windows access to BMI260 (IMU), MMC5603 (Mag), STK33911 (ALS/Prox)
+  Device (SNS0)
+  {
+    Name (_HID, "QCOM0008")
+    Name (_UID, 0)
+    Method (HARD, 0, NotSerialized) { Return ("7325") }
+    Method (PLAT, 0, NotSerialized) { Return ("SPACEWAR") }
+  }
 
   // CPU Power Management
   Include ("Cpu.asl")
