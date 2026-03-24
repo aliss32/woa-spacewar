@@ -6,9 +6,8 @@ on:
       - main
     paths:
       - 'Drivers/windows_oem_nothing_spacewar/**'
+      - '.github/workflows/build_drivers.yml'
   workflow_dispatch:
-  release:
-    types: [created]
 
 jobs:
   build_drivers:
@@ -21,6 +20,17 @@ jobs:
         run: |
           Compress-Archive -Path "Drivers/windows_oem_nothing_spacewar/*" -DestinationPath "Spacewar_Drivers_Native.zip" -Force
 
+      - name: Validate Archive
+        run: |
+          $size = (Get-Item "Spacewar_Drivers_Native.zip").Length
+          Write-Host "Archive size: $($size / 1MB) MB"
+          if ($size -lt 1024) {
+            Write-Error "Archive too small — likely empty"
+            exit 1
+          }
+          $hash = (Get-FileHash "Spacewar_Drivers_Native.zip" -Algorithm SHA256).Hash
+          Write-Host "SHA256: $hash"
+
       - name: Upload Driver Build Artifact
         uses: actions/upload-artifact@v4
         with:
@@ -28,12 +38,17 @@ jobs:
           path: Spacewar_Drivers_Native.zip
 
       - name: Upload to Release
-        if: github.event_name == 'release' || github.ref == 'refs/heads/main'
+        if: github.ref == 'refs/heads/main'
         uses: softprops/action-gh-release@v2
         with:
           files: Spacewar_Drivers_Native.zip
-          tag_name: "v1.0.0-native"
-          name: "Native Driver Package v1.0"
-          body: "100% Native Spacewar Driver Port (PMIC, Touch, Audio)"
+          tag_name: "drivers-v1.0.${{ github.run_number }}"
+          name: "Native Driver Package v1.0.${{ github.run_number }}"
+          body: |
+            ## Spacewar Native Driver Package
+            **Commit:** ${{ github.sha }}
+            100% Native driver port (PMIC, Touch, Audio)
           draft: false
           prerelease: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
