@@ -7,6 +7,9 @@
 </p>
 
 ---
+> [!STATUS]
+> <h3 style="color:red; margin:0;">CURRENTLY HANGING ON NOTHING LOGO WHILE FASTBOOT RUNNING</h3>
+
 
 > [!CAUTION]
 > <h3 style="color:red; margin:0;">HIGHLY EXPERIMENTAL</h3>
