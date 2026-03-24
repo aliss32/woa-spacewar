@@ -1,11 +1,14 @@
-name: Auto-Sync Everything
+name: Auto-Sync Hardware Analysis
 
 on:
   push:
     branches: [ main ]
+    paths:
+      - 'Scripts/analyze_hardware.py'
+      - '.github/workflows/analyze.yml'
   workflow_dispatch:
   schedule:
-    - cron: '0 0 * * *'
+    - cron: '0 0 * * 0'   # Weekly (Sunday midnight UTC)
 
 concurrency:
   group: auto-sync
@@ -14,7 +17,7 @@ concurrency:
 jobs:
   sync:
     if: github.actor != 'github-actions[bot]'
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
 
     steps:
       - name: Checkout
@@ -27,19 +30,19 @@ jobs:
         run: |
           git clone --depth=1 -b 14.0 \
             https://github.com/crdroidandroid/android_device_nothing_Spacewar.git \
-            sources/crdroid_device
+            sources/crdroid_device || true
 
       - name: Clone ExTV kernel DT
         run: |
           git clone --depth=1 \
             https://github.com/ExTV/android_kernel_devicetree_nothing_sm7325.git \
-            sources/kernel_dt
+            sources/kernel_dt || true
 
       - name: Clone NothingOSS kernel DT (msm-extra)
         run: |
           git clone --depth=1 -b sm7325/s \
             https://github.com/NothingOSS/android_kernel_devicetree_nothing_sm7325.git \
-            sources/nothing_official_dt
+            sources/nothing_official_dt || true
 
       - name: Clone LineageOS device tree
         run: |
@@ -58,14 +61,6 @@ jobs:
           git clone --depth=1 -b XOS-16.0 \
             https://github.com/halogenOS/android_device_nothing_Spacewar.git \
             sources/halogenos_device || true
-
-      - name: DEBUG - List NothingOSS files
-        run: |
-          echo "=== NothingOSS full structure ==="
-          find sources/nothing_official_dt -type f | sort | head -80
-          echo ""
-          echo "=== Total files ==="
-          find sources/nothing_official_dt -type f | wc -l
 
       - name: Run hardware analysis
         run: |
