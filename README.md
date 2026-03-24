@@ -60,4 +60,19 @@ fastboot boot boot-spacewar.img
 4. If successful, the device will boot into the Windows 11 setup screen from the USB drive.
 
 ---
+## ⚖️ License & Acknowledgements
+
+This project repository is licensed under the **GNU General Public License v3.0 (GPLv3)**.
+
+However, the UEFI build system and base architecture (`edk2-msm`) that this port relies upon are licensed by their respective authors under the **BSD 2-Clause License**. We acknowledge and thank the following groups for their foundational work:
+- Renegade Project
+- DuoWoA authors
+- The EFIDroid Project
+- Qualcomm & The Linux Foundation
+- Microsoft Corporation
+- ARM Limited & Apple Inc.
+
+*See the [edk2-msm Repository](https://github.com/edk2-porting/edk2-msm) for full copyright details regarding the UEFI platform.*
+
+---
 **Maintainer**: [@aliss32](https://github.com/aliss32)
