@@ -112,8 +112,12 @@ jobs:
       - name: Patch Memory Map (GIC/UART Fix)
         run: |
           MAP_FILE="edk2-msm/Silicon/Qualcomm/sm7325/Library/PlatformMemoryMapLib/PlatformMemoryMapLib.c"
-          sed -i '/{"APSS_HM"/i \    {"GIC",               0x17A00000, 0x00100000, AddMem, MEM_RES, UNCACHEABLE, Reserv, UNCACHED_UNBUFFERED_XN},' $MAP_FILE
-          sed -i '/{"QUP"/i \    {"UART",              0x00994000, 0x00002000, AddMem, MEM_RES, UNCACHEABLE, Reserv, UNCACHED_UNBUFFERED_XN},' $MAP_FILE
+          # Remove overlapping generic regions
+          sed -i '/{"APSS_HM"/d' $MAP_FILE
+          sed -i '/{"QUP"/d' $MAP_FILE
+          # Insert specific regions (Use AddMem to fix GIC crash, size covers GIC + Timer)
+          sed -i '/{"Terminator"/i \    {"GIC/Timer",         0x17A00000, 0x00400000, AddMem, MEM_RES, UNCACHEABLE, Reserv, UNCACHED_UNBUFFERED_XN},' $MAP_FILE
+          sed -i '/{"Terminator"/i \    {"UART",              0x00994000, 0x00004000, AddMem, MEM_RES, UNCACHEABLE, Reserv, UNCACHED_UNBUFFERED_XN},' $MAP_FILE
 
 
       - name: Build UEFI
