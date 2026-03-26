@@ -96,10 +96,16 @@ jobs:
           cp UEFI/Platform/Nothing/sm7325/AcpiTables/spacewar/Cpu.asl \
              edk2-msm/Platform/Nothing/sm7325/AcpiTables/spacewar/Cpu.asl
 
+          # Copy DTB files
           cp edk2-msm/Platform/Xiaomi/sm7325/FdtBlob/sm7325-generic-msd.dtb \
              edk2-msm/Platform/Nothing/sm7325/FdtBlob/sm7325-generic-msd.dtb
           cp spacewar.dtb \
              edk2-msm/Platform/Nothing/sm7325/FdtBlob_compat/spacewar.dtb
+
+          # Copy Spacewar specific libraries
+          mkdir -p edk2-msm/Platform/Nothing/sm7325/Library/PlatformMemoryMapLib
+          cp UEFI/Platform/Nothing/sm7325/Library/PlatformMemoryMapLib/* \
+             edk2-msm/Platform/Nothing/sm7325/Library/PlatformMemoryMapLib/
 
           echo "=== Copied files ==="
           find edk2-msm/Platform/Nothing -type f | sort
@@ -109,6 +115,7 @@ jobs:
           iasl -p edk2-msm/Platform/Nothing/sm7325/AcpiTables/spacewar/DSDT \
                edk2-msm/Platform/Nothing/sm7325/AcpiTables/spacewar/DSDT.asl
 
+<<<<<<< Updated upstream
       - name: Patch Memory Map (Final GIC/UART Fix)
         run: |
           MAP_FILE="edk2-msm/Silicon/Qualcomm/sm7325/Library/PlatformMemoryMapLib/PlatformMemoryMapLib.c"
@@ -121,6 +128,8 @@ jobs:
           # QUP: UART ve diğer SE birimlerini kapsayan 2MB'lık blok
           sed -i '/{"Terminator"/i \    {"QUP",               0x00900000, 0x00200000, AddMem, MMAP_IO, UNCACHEABLE, MmIO,   DEVICE},' $MAP_FILE
 
+=======
+>>>>>>> Stashed changes
 
       - name: Build UEFI
         run: |
