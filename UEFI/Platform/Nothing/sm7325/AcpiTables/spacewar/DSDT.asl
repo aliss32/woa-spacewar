@@ -3,7 +3,7 @@
  * Nothing Phone (1) / Spacewar / SM7325-AE
  *
  * Confirmed native values for Nothing Phone (1):
- *   [DTS] goodix,gt9895 touch on qupv3_se9_i2c (I2C9)
+ *   [DTS] goodix,gt9916s touch on SPI0
  *   [DTS] qcom,mdss_dsi_r66451 display (Visionox AMOLED)
  *   [DTS] qcom,sm7325-ae SoC
  *
