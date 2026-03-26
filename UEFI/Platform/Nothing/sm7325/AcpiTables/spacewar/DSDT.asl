@@ -174,7 +174,7 @@ DefinitionBlock ("DSDT.aml", "DSDT", 2, "MSFT", "SPACEWAR", 1)
     Name (_HID, "QCOM0C38")
     Name (_UID, 0)
     Name (_CRS, ResourceTemplate () {
-      Memory32Fixed (ReadWrite, 0x0F100000, 0x00900000)
+      Memory32Fixed (ReadWrite, 0x0F100000, 0x00300000)
     })
   }
 

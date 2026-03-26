@@ -20,5 +20,5 @@ FILE FREEFORM = 7E374E25-8E01-4FEE-87F2-390C23C606CD {
 // Mainline device tree blob
 
 FILE FREEFORM = 25462CDA-221F-47DF-AC1D-259CFAA4E326 {
-  SECTION RAW = Platform/Nothing/sm7325/FdtBlob/sm7325-generic-msd.dtb
+  SECTION RAW = Platform/Nothing/sm7325/FdtBlob_compat/spacewar.dtb
 }

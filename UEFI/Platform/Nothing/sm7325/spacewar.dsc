@@ -29,5 +29,7 @@
   # GIC and UART Fix
   gArmTokenSpaceGuid.PcdGicDistributorBase|0x17A00000
   gArmTokenSpaceGuid.PcdGicRedistributorsBase|0x17A60000
-  gEfiMdeModulePkgTokenSpaceGuid.PcdSerialRegisterBase|0x00984000
+  gEfiMdeModulePkgTokenSpaceGuid.PcdSerialRegisterBase|0x00994000
 
+[LibraryClasses.common]
+  PlatformMemoryMapLib|Platform/Nothing/sm7325/Library/PlatformMemoryMapLib/PlatformMemoryMapLib.inf

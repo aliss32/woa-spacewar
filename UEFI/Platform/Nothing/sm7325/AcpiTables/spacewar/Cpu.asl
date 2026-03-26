@@ -59,8 +59,8 @@ Scope (\_SB)
     {
         54,
         3,
-        255,
-        240,     // Nominal Performance (2.4 GHz)
+        255,     // Highest Performance
+        252,     // Nominal Performance (2.52 GHz - SM7325-AE)
         125,
         60,
         ResourceTemplate() { Register(FFixedHW, 64, 0, 0x0, 4) },
