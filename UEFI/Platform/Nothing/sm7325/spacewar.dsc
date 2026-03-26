@@ -29,5 +29,5 @@
   # GIC and UART Fix
   gArmTokenSpaceGuid.PcdGicDistributorBase|0x17A00000
   gArmTokenSpaceGuid.PcdGicRedistributorsBase|0x17A60000
-  gEfiMdeModulePkgTokenSpaceGuid.PcdSerialRegisterBase|0x00994000
+  gEfiMdeModulePkgTokenSpaceGuid.PcdSerialRegisterBase|0x00984000
 
