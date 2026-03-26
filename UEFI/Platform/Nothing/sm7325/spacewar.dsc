@@ -25,3 +25,9 @@
   gRenegadePkgTokenSpaceGuid.PcdDeviceVendor|"Nothing"
   gRenegadePkgTokenSpaceGuid.PcdDeviceProduct|"Phone (1)"
   gRenegadePkgTokenSpaceGuid.PcdDeviceCodeName|"spacewar"
+  
+  # GIC and UART Fix
+  gArmTokenSpaceGuid.PcdGicDistributorBase|0x17A00000
+  gArmTokenSpaceGuid.PcdGicRedistributorsBase|0x17A60000
+  gEfiMdeModulePkgTokenSpaceGuid.PcdSerialRegisterBase|0x00994000
+
