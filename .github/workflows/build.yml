@@ -109,15 +109,17 @@ jobs:
           iasl -p edk2-msm/Platform/Nothing/sm7325/AcpiTables/spacewar/DSDT \
                edk2-msm/Platform/Nothing/sm7325/AcpiTables/spacewar/DSDT.asl
 
-      - name: Patch Memory Map (GIC/UART Fix)
+      - name: Patch Memory Map (Final GIC/UART Fix)
         run: |
           MAP_FILE="edk2-msm/Silicon/Qualcomm/sm7325/Library/PlatformMemoryMapLib/PlatformMemoryMapLib.c"
-          # GIC çökmesini önlemek için APSS_HM ve QUP bölgelerini AddDev yerine AddMem olarak değiştir
-          # Bu yöntem GICv3 sürücüsünün (ArmGicDxe) fiziksel adreslere erişimini garanti eder.
-          sed -i 's/{"APSS_HM",.*AddDev/{"APSS_HM",           0x17800000, 0x00E00000, AddMem/g' $MAP_FILE
-          sed -i 's/{"QUP",.*AddDev/{"QUP",               0x00900000, 0x00200000, AddMem/g' $MAP_FILE
-          # UART adresi ve GIC adreslerinin DSC içindeki değerlerle (0x994000 ve 0x17A00000)
-          # bu haritalanan geniş bloklar içinde kaldığını (0x00900000-0x00B00000 ve 0x17800000-0x18600000) doğruladık.
+          # Çakışan tüm APSS_HM ve QUP tanımlarını komple sil (Temiz sayfa)
+          sed -i '/{"APSS_HM"/d' $MAP_FILE
+          sed -i '/{"QUP"/d' $MAP_FILE
+          # GICv3 ve UART için kesin tanımları ekle (AddMem + DEVICE özellikleri ile)
+          # APSS_HM: GIC ve Timer birimlerini kapsayan 14MB'lık blok
+          sed -i '/{"Terminator"/i \    {"APSS_HM",           0x17800000, 0x00E00000, AddMem, MMAP_IO, UNCACHEABLE, MmIO,   DEVICE},' $MAP_FILE
+          # QUP: UART ve diğer SE birimlerini kapsayan 2MB'lık blok
+          sed -i '/{"Terminator"/i \    {"QUP",               0x00900000, 0x00200000, AddMem, MMAP_IO, UNCACHEABLE, MmIO,   DEVICE},' $MAP_FILE
 
 
       - name: Build UEFI
