@@ -91,8 +91,8 @@ jobs:
              edk2-msm/Platform/Nothing/sm7325/spacewar.fdf.inc
 
           # Copy ALL ACPI tables (DSDT.asl + Cpu.asl)
-          cp UEFI/Platform/Nothing/sm7325/AcpiTables/spacewar/DSDT.asl \
-             edk2-msm/Platform/Nothing/sm7325/AcpiTables/spacewar/DSDT.asl
+          cp UEFI/Platform/Nothing/sm7325/AcpiTables/spacewar/Dsdt.asl \
+             edk2-msm/Platform/Nothing/sm7325/AcpiTables/spacewar/Dsdt.asl
           cp UEFI/Platform/Nothing/sm7325/AcpiTables/spacewar/Cpu.asl \
              edk2-msm/Platform/Nothing/sm7325/AcpiTables/spacewar/Cpu.asl
 
@@ -110,22 +110,14 @@ jobs:
           echo "=== Copied files ==="
           find edk2-msm/Platform/Nothing -type f | sort
 
-      - name: Compile DSDT.asl to DSDT.aml
-        run: |
-          iasl -p edk2-msm/Platform/Nothing/sm7325/AcpiTables/spacewar/DSDT \
-               edk2-msm/Platform/Nothing/sm7325/AcpiTables/spacewar/DSDT.asl
+
 
       - name: Build UEFI
         run: |
           cd edk2-msm
 
           echo "=== Build starting ==="
-          # Patch USE_UART for debug output
-          sed -i 's/-D USE_UART=0/-D USE_UART=1/g' build.sh
-          echo "build.sh USE_UART patch:"
-          grep "USE_UART" build.sh || echo "USE_UART not found"
-
-          ./build.sh -d spacewar -r RELEASE
+          ./build.sh -d spacewar -r RELEASE -u -A
 
           echo "=== Build result ==="
           ls -la boot-spacewar.img 2>/dev/null || (echo "boot-spacewar.img MISSING"; exit 1)
