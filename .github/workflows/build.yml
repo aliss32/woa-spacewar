@@ -115,22 +115,6 @@ jobs:
           iasl -p edk2-msm/Platform/Nothing/sm7325/AcpiTables/spacewar/DSDT \
                edk2-msm/Platform/Nothing/sm7325/AcpiTables/spacewar/DSDT.asl
 
-<<<<<<< Updated upstream
-      - name: Patch Memory Map (Final GIC/UART Fix)
-        run: |
-          MAP_FILE="edk2-msm/Silicon/Qualcomm/sm7325/Library/PlatformMemoryMapLib/PlatformMemoryMapLib.c"
-          # Çakışan tüm APSS_HM ve QUP tanımlarını komple sil (Temiz sayfa)
-          sed -i '/{"APSS_HM"/d' $MAP_FILE
-          sed -i '/{"QUP"/d' $MAP_FILE
-          # GICv3 ve UART için kesin tanımları ekle (AddMem + DEVICE özellikleri ile)
-          # APSS_HM: GIC ve Timer birimlerini kapsayan 14MB'lık blok
-          sed -i '/{"Terminator"/i \    {"APSS_HM",           0x17800000, 0x00E00000, AddMem, MMAP_IO, UNCACHEABLE, MmIO,   DEVICE},' $MAP_FILE
-          # QUP: UART ve diğer SE birimlerini kapsayan 2MB'lık blok
-          sed -i '/{"Terminator"/i \    {"QUP",               0x00900000, 0x00200000, AddMem, MMAP_IO, UNCACHEABLE, MmIO,   DEVICE},' $MAP_FILE
-
-=======
->>>>>>> Stashed changes
-
       - name: Build UEFI
         run: |
           cd edk2-msm
