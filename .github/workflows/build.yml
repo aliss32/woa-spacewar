@@ -112,12 +112,12 @@ jobs:
       - name: Patch Memory Map (GIC/UART Fix)
         run: |
           MAP_FILE="edk2-msm/Silicon/Qualcomm/sm7325/Library/PlatformMemoryMapLib/PlatformMemoryMapLib.c"
-          # Remove overlapping generic regions
-          sed -i '/{"APSS_HM"/d' $MAP_FILE
-          sed -i '/{"QUP"/d' $MAP_FILE
-          # Insert specific regions (Use AddMem to fix GIC crash, size covers GIC + Timer)
-          sed -i '/{"Terminator"/i \    {"GIC/Timer",         0x17A00000, 0x00400000, AddMem, MEM_RES, UNCACHEABLE, Reserv, UNCACHED_UNBUFFERED_XN},' $MAP_FILE
-          sed -i '/{"Terminator"/i \    {"UART",              0x00994000, 0x00004000, AddMem, MEM_RES, UNCACHEABLE, Reserv, UNCACHED_UNBUFFERED_XN},' $MAP_FILE
+          # GIC çökmesini önlemek için APSS_HM ve QUP bölgelerini AddDev yerine AddMem olarak değiştir
+          # Bu yöntem GICv3 sürücüsünün (ArmGicDxe) fiziksel adreslere erişimini garanti eder.
+          sed -i 's/{"APSS_HM",.*AddDev/{"APSS_HM",           0x17800000, 0x00E00000, AddMem/g' $MAP_FILE
+          sed -i 's/{"QUP",.*AddDev/{"QUP",               0x00900000, 0x00200000, AddMem/g' $MAP_FILE
+          # UART adresi ve GIC adreslerinin DSC içindeki değerlerle (0x994000 ve 0x17A00000)
+          # bu haritalanan geniş bloklar içinde kaldığını (0x00900000-0x00B00000 ve 0x17800000-0x18600000) doğruladık.
 
 
       - name: Build UEFI
