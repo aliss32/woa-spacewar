@@ -23,19 +23,18 @@ jobs:
 
       - name: Setup Workspace Structure
         run: |
-          # 1. edk2-msm'i ana klasöre çekiyoruz
+          # 1. EDK2-MSM (Framework) indir
           git clone --recursive https://github.com/edk2-porting/edk2-msm.git --depth 1 edk2_base
           
-          # 2. Simple-Init'i çekiyoruz
+          # 2. Simple-Init indir
           git clone https://github.com/BigfootACA/simple-init.git SimpleInit
           
-          # 3. Binary sürücüleri çekiyoruz
+          # 3. SENİN DOSYALARINI (UEFI/Platform içindekileri) edk2_base içine taşı
+          # Senin yapın: UEFI/Platform/... -> Hedef: edk2_base/Platform/...
+          cp -r UEFI/Platform edk2_base/
+          
+          # 4. Binary sürücüleri indir ve harmanla
           git clone https://github.com/edk2-porting/edk2-msm-binary.git --depth 1 binaries
-          
-          # 4. SENİN yerel dosyalarını (Platform/Nothing...) edk2_base içine kopyalıyoruz
-          cp -r Platform edk2_base/ || true
-          
-          # 5. Sürücüleri doğru yere harmanla
           mkdir -p edk2_base/Platform/EFI_Binaries/Drivers/Devices/spacewar
           cp -r binaries/Drivers/sm7325/* edk2_base/Platform/EFI_Binaries/Drivers/Devices/spacewar/ || true
 
@@ -49,15 +48,14 @@ jobs:
 
       - name: Build Spacewar UEFI
         run: |
-          # Derleyiciye Cross-Compiler'ı tanıt
           export GCC5_AARCH64_PREFIX=aarch64-linux-gnu-
-          
           cd edk2_base/Common/edk2
           . ./edksetup.sh
           
-          # Tüm paket yollarını derleyiciye açıyoruz
+          # PACKAGES_PATH'i tüm klasörleri kapsayacak şekilde kuruyoruz
           export PACKAGES_PATH=$GITHUB_WORKSPACE/edk2_base:$GITHUB_WORKSPACE/edk2_base/Common/edk2:$GITHUB_WORKSPACE/SimpleInit
           
+          # DSC yolunu senin verdiğin yeni yapıya göre güncelledik:
           build -a AARCH64 \
                 -p $GITHUB_WORKSPACE/edk2_base/Platform/Nothing/sm7325/spacewar.dsc \
                 -t GCC5 \
