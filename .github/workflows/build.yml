@@ -42,9 +42,7 @@ jobs:
           mkdir -p build
           # Generate rootfs using upstream script
           bash ./scripts/gen-rootfs-source.sh . build
-          # Ensure generated filename matches build expectations (fallback mv)
-          mv build/assets_rootfs.c build/rootfs.c || true
-          # Verify rootfs.c exists for UEFI build
+          # Verify rootfs.c exists for UEFI build (BigfootACA script generates this by default)
           ls -la build/rootfs.c || (echo "rootfs.c generation FAILED"; exit 1)
 
       - name: Patch EDK2 BaseTools (Fix Python Syntax Warnings)
@@ -106,9 +104,11 @@ jobs:
           cp UEFI/configs/devices/spacewar.conf \
              edk2-msm/configs/devices/spacewar.conf
 
+          mkdir -p edk2-msm/configs/devices
           mkdir -p edk2-msm/Platform/Nothing/sm7325/AcpiTables/spacewar
           mkdir -p edk2-msm/Platform/Nothing/sm7325/FdtBlob
           mkdir -p edk2-msm/Platform/Nothing/sm7325/FdtBlob_compat
+          mkdir -p edk2-msm/Platform/Nothing/sm7325/Library/PlatformMemoryMapLib
 
           cp UEFI/Platform/Nothing/sm7325/spacewar.dsc \
              edk2-msm/Platform/Nothing/sm7325/spacewar.dsc
