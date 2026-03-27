@@ -1,9 +1,7 @@
-name: Build Spacewar UEFI (Final)
+name: Build Spacewar UEFI (Final Fix)
 
 on:
   push:
-    branches: [ main, master ]
-  pull_request:
     branches: [ main, master ]
   workflow_dispatch:
 
@@ -15,8 +13,6 @@ jobs:
     steps:
       - name: Checkout Local Repository
         uses: actions/checkout@v4
-        with:
-          path: local-repo
 
       - name: Install Build Dependencies
         run: |
@@ -25,66 +21,50 @@ jobs:
           python3 python3-setuptools python3-dev gcc-aarch64-linux-gnu \
           device-tree-compiler bc abootimg
 
-      - name: Clone edk2-msm (Core Framework)
+      - name: Setup Workspace Structure
         run: |
-          git clone --recursive https://github.com/edk2-porting/edk2-msm.git --depth 1 edk2
-
-      - name: Clone SimpleInit (GUI Framework)
-        run: |
-          # spacewar.dsc'nin aradığı arayüz kütüphanesini çekiyoruz
-          git clone https://github.com/BigfootACA/simple-init.git edk2/SimpleInit
-
-      - name: Clone Binary Drivers (edk2-msm-binary)
-        run: |
-          # Sürücüleri (Buttons, MassStorage vb.) çekiyoruz
+          # 1. edk2-msm'i ana klasöre çekiyoruz
+          git clone --recursive https://github.com/edk2-porting/edk2-msm.git --depth 1 edk2_base
+          
+          # 2. Simple-Init'i çekiyoruz
+          git clone https://github.com/BigfootACA/simple-init.git SimpleInit
+          
+          # 3. Binary sürücüleri çekiyoruz
           git clone https://github.com/edk2-porting/edk2-msm-binary.git --depth 1 binaries
-
-      - name: Prepare Workspace & Merge Files
-        run: |
-          # 1. C++ Derleme Hatasını Yamala (uintptr_t hatası için)
-          sed -i '1i #include <stdint.h>' edk2/Common/edk2/BaseTools/Source/C/VfrCompile/VfrCompiler.cpp
-          sed -i '1i #include <stdint.h>' edk2/Common/edk2/BaseTools/Source/C/VfrCompile/VfrUtilityLib.cpp
-
-          # 2. Senin repondaki UEFI klasöründeki her şeyi edk2 ana dizinine kopyala
-          cp -r local-repo/UEFI/* edk2/
           
-          # 3. Binary sürücüleri fdf.inc'in beklediği yapıya oturt
-          mkdir -p edk2/Platform/EFI_Binaries
-          cp -r binaries/* edk2/Platform/EFI_Binaries/
+          # 4. SENİN yerel dosyalarını (Platform/Nothing...) edk2_base içine kopyalıyoruz
+          cp -r Platform edk2_base/ || true
           
-          # spacewar.fdf.inc yolu için sm7325 sürücülerini kopyala
-          mkdir -p edk2/Platform/EFI_Binaries/Drivers/Devices/spacewar
-          cp -r binaries/Drivers/sm7325/* edk2/Platform/EFI_Binaries/Drivers/Devices/spacewar/ || true
+          # 5. Sürücüleri doğru yere harmanla
+          mkdir -p edk2_base/Platform/EFI_Binaries/Drivers/Devices/spacewar
+          cp -r binaries/Drivers/sm7325/* edk2_base/Platform/EFI_Binaries/Drivers/Devices/spacewar/ || true
 
       - name: Build BaseTools
         run: |
-          # 1. TianoCore klasörüne giriş yap (BaseTools burada)
-          cd edk2/Common/edk2
-          
-          # 2. Modern derleyici yamalarını uygula
+          cd edk2_base/Common/edk2
+          # GCC 13+ Yaması
           sed -i '1i #include <stdint.h>' BaseTools/Source/C/VfrCompile/VfrCompiler.cpp
           sed -i '1i #include <stdint.h>' BaseTools/Source/C/VfrCompile/VfrUtilityLib.cpp
-          
-          # 3. Derlemeyi başlat
           make -C BaseTools
 
       - name: Build Spacewar UEFI
         run: |
-          cd edk2/Common/edk2
+          # Derleyiciye Cross-Compiler'ı tanıt
+          export GCC5_AARCH64_PREFIX=aarch64-linux-gnu-
+          
+          cd edk2_base/Common/edk2
           . ./edksetup.sh
-          # Tüm olası ana dizinleri PACKAGES_PATH'e ekliyoruz
-          export PACKAGES_PATH=$GITHUB_WORKSPACE/edk2:$GITHUB_WORKSPACE/edk2/Common/edk2:$GITHUB_WORKSPACE/edk2/Platform/Qualcomm
+          
+          # Tüm paket yollarını derleyiciye açıyoruz
+          export PACKAGES_PATH=$GITHUB_WORKSPACE/edk2_base:$GITHUB_WORKSPACE/edk2_base/Common/edk2:$GITHUB_WORKSPACE/SimpleInit
           
           build -a AARCH64 \
-                -p $GITHUB_WORKSPACE/edk2/Platform/Nothing/sm7325/spacewar.dsc \
+                -p $GITHUB_WORKSPACE/edk2_base/Platform/Nothing/sm7325/spacewar.dsc \
                 -t GCC5 \
                 -b RELEASE
 
-      - name: Upload Build Artifacts
+      - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: Nothing-Phone1-UEFI-Image
-          path: |
-            edk2/Build/spacewar/RELEASE_GCC5/FV/*.fd
-            edk2/Build/spacewar/RELEASE_GCC5/FV/*.img
-          if-no-files-found: error
+          name: spacewar-uefi
+          path: edk2_base/Build/spacewar/RELEASE_GCC5/FV/spacewar.fd
