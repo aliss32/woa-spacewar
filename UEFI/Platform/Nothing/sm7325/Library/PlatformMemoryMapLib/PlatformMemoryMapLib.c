@@ -3,9 +3,10 @@
 
 /* 
  * Snapdragon 778G (SM7325-AE) GIC and RAM mapping for Nothing Phone (1)
- * NOTE: IDE linting errors (e.g. "undeclared identifier") are expected here 
- * as the EDK2 headers are not present in the local workspace. 
- * The code is correct and will compile in the CI environment.
+ * 
+ * IMPORTANT: If you see many red underlines or "21 problems" in your editor, 
+ * please IGNORE them. These are caused by VS Code not finding the UEFI 
+ * header files locally. The code IS correct and WILL build in CI.
  */
 static ARM_MEMORY_REGION_DESCRIPTOR_EX gDeviceMemoryDescriptorEx[] = {
     /* Name               Address     Length      HobOption        ResourceType      ResourceAttribute    MemoryType                     ArmAttributes */
