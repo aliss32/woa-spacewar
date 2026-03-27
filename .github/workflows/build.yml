@@ -57,8 +57,16 @@ jobs:
           cp -r binaries/Drivers/sm7325/* edk2/Platform/EFI_Binaries/Drivers/Devices/spacewar/ || true
 
       - name: Build BaseTools
-        working-directory: edk2
-        run: make -C BaseTools
+        run: |
+          # 1. TianoCore klasörüne giriş yap (BaseTools burada)
+          cd edk2/Common/edk2
+          
+          # 2. Modern derleyici yamalarını uygula
+          sed -i '1i #include <stdint.h>' BaseTools/Source/C/VfrCompile/VfrCompiler.cpp
+          sed -i '1i #include <stdint.h>' BaseTools/Source/C/VfrCompile/VfrUtilityLib.cpp
+          
+          # 3. Derlemeyi başlat
+          make -C BaseTools
 
       - name: Build Spacewar UEFI
         working-directory: edk2
