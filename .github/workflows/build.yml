@@ -20,26 +20,31 @@ jobs:
       - name: Install Dependencies
         run: |
           sudo apt update
-          sudo apt install -y build-essential uuid-dev iasl git nasm python3-distutils
+          # python3-distutils yerine python3-setuptools ve python3-dev ekledik
+          sudo apt install -y build-essential uuid-dev iasl git nasm \
+          python3 python3-setuptools python3-dev gcc-aarch64-linux-gnu
 
       - name: Setup EDK2
         run: |
+          # EDK2 BaseTools derlemesi
           make -C BaseTools
           source edksetup.sh
 
       - name: Build Spacewar UEFI
         run: |
-          # Görseldeki yeni dizin yapısına göre yollar
-          DEVICE_DSC="Platform/Nothing/sm7325/spacewar.dsc"
+          # Görseldeki tam yol: Platform/Nothing/sm7325/spacewar.dsc
+          # GCC_AARCH64_PREFIX tanımlanması Ubuntu'da derleme için kritiktir
+          export GCC5_AARCH64_PREFIX=aarch64-linux-gnu-
           
           build -a AARCH64 \
-                -p "$DEVICE_DSC" \
+                -p Platform/Nothing/sm7325/spacewar.dsc \
                 -t GCC5 \
                 -b RELEASE \
                 -D FIRMWARE_VER=0.1
                 
       - name: Upload Artifacts
-        uses: actions/checkout@v4
+        uses: actions/upload-artifact@v4
         with:
           name: spacewar-uefi
+          # EDK2 genellikle çıktıları Build klasörüne atar, yolu kontrol et
           path: Build/spacewar/RELEASE_GCC5/FV/
