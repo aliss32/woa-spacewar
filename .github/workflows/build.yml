@@ -147,8 +147,20 @@ jobs:
           echo "PACKAGES_PATH: $PACKAGES_PATH"
           
           cd edk2-msm
-          echo "=== Build starting ==="
-          ./build.sh -d spacewar -r RELEASE -u -A
+          echo "=== Step 1: Compilation ==="
+          ./build.sh -d spacewar -r RELEASE -u
+
+          echo "=== Step 2: Fixing Case Sensitivity for Packaging ==="
+          # The packaging hook expects sm7325_UEFI.fd (lowercase) but EDK2 might produce SM7325_UEFI.fd
+          # We create a symlink to ensure both exist.
+          FV_DIR="workspace/Build/spacewar/RELEASE_CLANG38/FV"
+          if [ -f "$FV_DIR/SM7325_UEFI.fd" ]; then
+            ln -sf SM7325_UEFI.fd "$FV_DIR/sm7325_UEFI.fd"
+            echo "Created symlink: sm7325_UEFI.fd -> SM7325_UEFI.fd"
+          fi
+
+          echo "=== Step 3: Packaging ==="
+          ./build.sh -d spacewar -r RELEASE -A
 
           echo "=== Build result ==="
           ls -la boot-spacewar.img 2>/dev/null || (echo "boot-spacewar.img MISSING"; exit 1)
