@@ -10,18 +10,22 @@ static ARM_MEMORY_REGION_DESCRIPTOR_EX gDeviceMemoryDescriptorEx[] = {
     {"RAM Partition 2",   0x100000000, 0x180000000, AddMem,        SYS_MEM,          SYS_MEM_CAP,         Conv,                          WRITE_BACK},
 
     /* Register regions (GICv3 v4.1 for 778G) */
-    {"GIC Distributor",   0x17A00000, 0x00010000, AddDev,          MMAP_IO,          INITIALIZED,         MmIO,                         DEVICE},
-    {"GIC Redistributor", 0x17B00000, 0x00100000, AddDev,          MMAP_IO,          INITIALIZED,         MmIO,                         DEVICE},
-    {"UART",              0x00994000, 0x00001000, AddDev,          MMAP_IO,          INITIALIZED,         MmIO,                         DEVICE},
+    {"GIC Distributor",   0x17A00000, 0x00010000, AddDev,          MMAP_IO,          INITIALIZED,         MmIO,                         NS_DEVICE},
+    {"GIC Redistributor", 0x17A60000, 0x00100000, AddDev,          MMAP_IO,          INITIALIZED,         MmIO,                         NS_DEVICE},
+    {"UART",              0x00994000, 0x00001000, AddDev,          MMAP_IO,          INITIALIZED,         MmIO,                         NS_DEVICE},
     
     /* Display / MDSS (FrameBuffer) */
     {"MDSS",              0x0AE00000, 0x00100000, AddDev,          MMAP_IO,          INITIALIZED,         MmIO,                         DEVICE},
-    {"Display Reserved",  0x9C000000, 0x02400000, NoHob,           MEM_RES,          INITIALIZED,         Reserv,                       WRITE_BACK},
+    {"Display Reserved",  0xE1000000, 0x02400000, NoHob,           MEM_RES,          INITIALIZED,         Reserv,                       WRITE_THROUGH_XN},
 
     /* SoC Peripherals */
-    {"GPU",               0x03D00000, 0x00100000, AddDev,          MMAP_IO,          INITIALIZED,         MmIO,                         DEVICE},
+    {"SECURITY CONTROL",  0x00780000, 0x00010000, AddDev,          MMAP_IO,          UNCACHEABLE,         MmIO,                         NS_DEVICE},
+    {"PERIPH_SS",         0x08800000, 0x00500000, AddDev,          MMAP_IO,          UNCACHEABLE,         MmIO,                         NS_DEVICE},
     {"USB",               0x0A600000, 0x00100000, AddDev,          MMAP_IO,          INITIALIZED,         MmIO,                         DEVICE},
-    {"CAMERA",            0x0AC00000, 0x00800000, AddDev,          MMAP_IO,          INITIALIZED,         MmIO,                         DEVICE},
+    {"AOSS",              0x0B000000, 0x04000000, AddDev,          MMAP_IO,          UNCACHEABLE,         MmIO,                         NS_DEVICE},
+    {"TLMM",              0x0F100000, 0x00300000, AddDev,          MMAP_IO,          UNCACHEABLE,         MmIO,                         NS_DEVICE},
+    {"SMMU",              0x15000000, 0x00200000, AddDev,          MMAP_IO,          UNCACHEABLE,         MmIO,                         NS_DEVICE},
+    {"APSS_HM",           0x17800000, 0x00E00000, AddDev,          MMAP_IO,          UNCACHEABLE,         MmIO,                         NS_DEVICE},
 
     /* Terminator */
     {"", 0, 0, 0, 0, 0, 0, 0}
