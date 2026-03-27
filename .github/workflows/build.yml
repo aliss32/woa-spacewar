@@ -69,22 +69,22 @@ jobs:
           make -C BaseTools
 
       - name: Build Spacewar UEFI
-        working-directory: edk2
         run: |
-          # Ortam değişkenleri
-          export GCC5_AARCH64_PREFIX=aarch64-linux-gnu-
-          export WORKSPACE=$PWD
-          export PACKAGES_PATH=$PWD:$PWD/SimpleInit
+          # 1. TianoCore klasörüne gir (Burası ana çalışma merkezimiz)
+          cd edk2/Common/edk2
           
-          # EDK2 Kurulumu
-          source edksetup.sh
+          # 2. Ortam değişkenlerini kur (Nokta çok önemli: . ./...)
+          . ./edksetup.sh
           
-          # Derleme Komutu
+          # 3. BaseTools'un derlendiğinden emin ol (Eğer önceki adımda yapmadıysan)
+          make -C BaseTools
+          
+          # 4. Derlemeyi başlat (Yolları ana dizine göre değil, EDK2_PATH'e göre ayarlar)
+          # NOT: WORKSPACE ve PACKAGES_PATH değişkenleri edksetup ile set edilir.
           build -a AARCH64 \
-                -p Platform/Nothing/sm7325/spacewar.dsc \
+                -p ../../Platform/Nothing/sm7325/spacewar.dsc \
                 -t GCC5 \
-                -b RELEASE \
-                -D FIRMWARE_VER=0.1
+                -b RELEASE
 
       - name: Upload Build Artifacts
         uses: actions/upload-artifact@v4
