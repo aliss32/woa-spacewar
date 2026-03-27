@@ -61,7 +61,6 @@ jobs:
         run: |
           echo "🌳 Preparing Device Tree Blob..."
           
-          # Use Spacewar-specific Yupik DTB
           if [ -f "DTB/spacewar-yupik.dtb" ]; then
             cp DTB/spacewar-yupik.dtb spacewar.dtb
             echo "✅ Using: DTB/spacewar-yupik.dtb"
@@ -70,7 +69,6 @@ jobs:
             exit 1
           fi
           
-          # Validate DTB integrity
           python3 << 'DTBEOF'
           import struct, sys
           
@@ -85,51 +83,6 @@ jobs:
               sys.exit(1)
           
           print(f'✅ DTB Valid: {size} bytes ({size/1024:.1f} KB)')
-          
-          # Extract device info
-          try:
-              off_struct = struct.unpack_from('>I', dtb, 8)[0]
-              off_strings = struct.unpack_from('>I', dtb, 12)[0]
-              FDT_BEGIN_NODE, FDT_END_NODE, FDT_PROP, FDT_END = 1, 2, 3, 9
-              
-              pos, depth = off_struct, 0
-              devices = []
-              
-              while pos < len(dtb) - 4:
-                  t = struct.unpack_from('>I', dtb, pos)[0]
-                  pos += 4
-                  
-                  if t == FDT_BEGIN_NODE:
-                      ne = dtb.index(b'\x00', pos)
-                      node_name = dtb[pos:ne].decode('ascii', 'replace')
-                      if depth == 1:
-                          devices.append(node_name)
-                      depth += 1
-                      pos = ne + 1
-                      pos = (pos + 3) & ~3
-                  elif t == FDT_PROP:
-                      pl = struct.unpack_from('>I', dtb, pos)[0]
-                      no = struct.unpack_from('>I', dtb, pos + 4)[0]
-                      pne = dtb.index(b'\x00', off_strings + no)
-                      pname = dtb[off_strings + no:pne].decode('ascii', 'replace')
-                      pval = dtb[pos + 8:pos + 8 + pl]
-                      pos += 8 + pl
-                      pos = (pos + 3) & ~3
-                      
-                      if depth == 1 and pname in ('model', 'compatible'):
-                          val_str = pval.replace(b"\x00", b" ").decode("ascii", "replace").strip()
-                          print(f'  📋 {pname}: {val_str}')
-                  elif t == FDT_END_NODE:
-                      depth -= 1
-                      if depth == 0:
-                          break
-                  elif t == FDT_END:
-                      break
-              
-              if devices:
-                  print(f'  📱 Root devices: {", ".join(devices[:5])}...')
-          except Exception as e:
-              print(f'⚠️  Warning during parsing: {e}')
           DTBEOF
 
       - name: Compile ACPI tables (ASL → AML)
@@ -139,7 +92,6 @@ jobs:
           mkdir -p build_acpi
           cd build_acpi
           
-          # Get list of all .asl files in Spacewar ACPI directory
           for asl_file in ../UEFI/Platform/Nothing/sm7325/AcpiTables/spacewar/*.asl; do
               if [ -f "$asl_file" ]; then
                   basename=$(basename "$asl_file")
@@ -148,14 +100,15 @@ jobs:
                   echo "  ⚙️  Compiling: $basename → $aml_name"
                   
                   if iasl -f "$asl_file" 2>&1 | grep -qi "error"; then
-                      echo "  ⚠️  Compilation warning (continuing...)"
+                      echo "  ❌ ERROR in $basename"
+                      cat "$asl_file.err" || true
+                      exit 1
                   else
                       echo "  ✅ Compiled: $aml_name"
                   fi
               fi
           done
           
-          # Copy compiled .aml files back
           find . -name "*.aml" -exec cp {} ../UEFI/Platform/Nothing/sm7325/AcpiTables/spacewar/ \; 2>/dev/null || true
           
           cd ..
@@ -168,47 +121,23 @@ jobs:
         run: |
           echo "📂 Setting up Spacewar platform in edk2-msm..."
           
-          # Copy device configuration
           mkdir -p edk2-msm/configs/devices
           cp UEFI/configs/devices/spacewar.conf edk2-msm/configs/devices/
           echo "  ✅ Copied: spacewar.conf"
           
-          # Create platform directory structure
           mkdir -p edk2-msm/Platform/Nothing/sm7325/{AcpiTables/spacewar,FdtBlob,FdtBlob_compat,Library/PlatformMemoryMapLib}
           echo "  ✅ Created directory structure"
           
-          # Copy DSC and FDF files
           cp UEFI/Platform/Nothing/sm7325/spacewar.dsc edk2-msm/Platform/Nothing/sm7325/
           cp UEFI/Platform/Nothing/sm7325/spacewar.fdf.inc edk2-msm/Platform/Nothing/sm7325/
           echo "  ✅ Copied: spacewar.dsc, spacewar.fdf.inc"
           
-          # Copy compiled ACPI tables (both .asl source and .aml compiled)
           cp -r UEFI/Platform/Nothing/sm7325/AcpiTables/spacewar/* \
              edk2-msm/Platform/Nothing/sm7325/AcpiTables/spacewar/
-          echo "  ✅ Copied: ACPI tables ($(ls UEFI/Platform/Nothing/sm7325/AcpiTables/spacewar/*.aml 2>/dev/null | wc -l) compiled)"
+          echo "  ✅ Copied: ACPI tables"
           
-          # Copy DTB files
-          # Ensure SM7325 generic DTB exists
-          if [ -f "edk2-msm/Platform/Xiaomi/sm7325/FdtBlob/sm7325-generic-msd.dtb" ]; then
-              cp edk2-msm/Platform/Xiaomi/sm7325/FdtBlob/sm7325-generic-msd.dtb \
-                 edk2-msm/Platform/Nothing/sm7325/FdtBlob/
-              echo "  ✅ Copied: sm7325-generic-msd.dtb from Lisa"
-          else
-              echo "  ⚠️  sm7325-generic-msd.dtb fallback not found (will use mainline DTB only)"
-          fi
-          
-          # Copy Spacewar-specific Yupik DTB for compatibility layer
           cp spacewar.dtb edk2-msm/Platform/Nothing/sm7325/FdtBlob_compat/spacewar.dtb
           echo "  ✅ Copied: spacewar.dtb (Yupik)"
-          
-          # Copy platform memory map library
-          cp -r UEFI/Platform/Nothing/sm7325/Library/PlatformMemoryMapLib/* \
-             edk2-msm/Platform/Nothing/sm7325/Library/PlatformMemoryMapLib/
-          echo "  ✅ Copied: PlatformMemoryMapLib"
-          
-          echo ""
-          echo "📊 Prepared platform files:"
-          find edk2-msm/Platform/Nothing -type f -name "*.aml" -o -name "*.dsc" -o -name "*.inf" -o -name "*.dtb" | head -15
 
       - name: Build UEFI firmware
         run: |
@@ -220,112 +149,23 @@ jobs:
           echo "  Profile: RELEASE"
           echo ""
           
-          # Run build script with spacewar device profile
           if ! ./build.sh -d spacewar -r RELEASE -u -A 2>&1 | tee build.log; then
               echo ""
               echo "❌ Build FAILED!"
-              echo ""
-              echo "📋 Last build log entries:"
               tail -50 build.log
               exit 1
           fi
           
-          # Verify output
           if [ ! -f "boot-spacewar.img" ]; then
-              echo ""
               echo "❌ CRITICAL: boot-spacewar.img not produced!"
               ls -la *.img 2>/dev/null || echo "  No .img files found"
               exit 1
           fi
           
           SIZE=$(stat -c%s boot-spacewar.img)
-          echo ""
           echo "✅ UEFI Build Successful!"
           echo "  📦 Output: boot-spacewar.img"
-          echo "  💾 Size: $((SIZE / 1024 / 1024))MB ($SIZE bytes)"
-
-      - name: Verify boot image integrity
-        run: |
-          python3 << 'VERIFYEOF'
-          import subprocess, struct, os, sys, lzma, hashlib
-          
-          img_path = 'edk2-msm/boot-spacewar.img'
-          
-          if not os.path.exists(img_path):
-              print(f'❌ ERROR: {img_path} not found!')
-              sys.exit(1)
-          
-          print("🔍 Verifying boot image...")
-          print("")
-          
-          with open(img_path, 'rb') as f:
-              boot = f.read()
-          
-          # Basic info
-          img_size = len(boot)
-          img_hash = hashlib.sha256(boot).hexdigest()
-          
-          print(f'✅ Boot Image Info:')
-          print(f'   Size: {img_size / 1024 / 1024:.2f} MB')
-          print(f'   SHA256: {img_hash[:32]}...')
-          print("")
-          
-          # Extract and verify kernel
-          try:
-              ks = struct.unpack_from('<I', boot, 8)[0]
-              print(f'✅ Kernel Extraction:')
-              print(f'   Kernel size: {ks} bytes')
-              
-              with open('/tmp/kernel.gz', 'wb') as f:
-                  f.write(boot[2048:2048+ks])
-              
-              r = subprocess.run(['gunzip', '-c', '-f', '/tmp/kernel.gz'], 
-                               capture_output=True, timeout=10)
-              kernel = r.stdout
-              print(f'   Decompressed: {len(kernel)} bytes')
-              print("")
-              
-              # Find embedded DTB
-              dtb_magic = bytes([0xd0, 0x0d, 0xfe, 0xed])
-              dtb_pos = kernel.rfind(dtb_magic)
-              
-              if dtb_pos > 0:
-                  dtb_size = struct.unpack_from('>I', kernel, dtb_pos + 4)[0]
-                  print(f'✅ Embedded DTB:')
-                  print(f'   Offset: 0x{dtb_pos:X}')
-                  print(f'   Size: {dtb_size / 1024:.1f} KB')
-                  print("")
-              
-              # Component verification
-              checks = [
-                  ('SimpleInit',        b'SimpleInit'),
-                  ('KernelFdtDxe',      b'KernelFdt'),
-                  ('SimpleFbDxe',       b'SimpleFbDxe'),
-                  ('UART Support',      b'SerialPortWrite'),
-                  ('Boot Menu',         b'Boot Android'),
-                  ('Platform ACPI',     b'DSDT'),
-                  ('SM7325 SoC',        b'QcomPkg'),
-              ]
-              
-              print(f'✅ Component Verification:')
-              missing = []
-              for name, kw in checks:
-                  present = kw in kernel or kw in boot
-                  status = '✓' if present else '✗'
-                  print(f'   {status} {name}')
-                  if not present:
-                      missing.append(name)
-              
-              if missing:
-                  print("")
-                  print(f"⚠️  Missing components: {', '.join(missing)}")
-              
-          except subprocess.TimeoutExpired:
-              print("⚠️  Kernel decompression timeout")
-          except Exception as e:
-              print(f'⚠️  Verification error: {e}')
-          
-          VERIFYEOF
+          echo "  💾 Size: $((SIZE / 1024 / 1024))MB"
 
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
@@ -333,7 +173,6 @@ jobs:
           name: boot-spacewar-${{ github.run_number }}
           path: edk2-msm/boot-spacewar.img
           retention-days: 30
-          if-no-files-found: error
 
       - name: Create GitHub Release
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
@@ -343,59 +182,6 @@ jobs:
           name: "Build #${{ github.run_number }}: Spacewar UEFI (Yupik)"
           draft: false
           prerelease: false
-          body: |
-            # WOA-Spacewar Build #${{ github.run_number }}
-            
-            **Status:** ✅ **Success**
-            **Commit:** [`${{ github.sha }}`](https://github.com/aliss32/woa-spacewar/commit/${{ github.sha }})
-            
-            ## Platform
-            - **Device:** Nothing Phone (1) / Spacewar
-            - **SoC:** SM7325-AE (Snapdragon 778G / Yupik)
-            - **Profile:** RELEASE
-            
-            ## Build Components
-            - ✅ Yupik DTB (Device Tree Blob)
-            - ✅ ACPI DSDT Table (compiled from .asl)
-            - ✅ SimpleInit Boot Menu
-            - ✅ UART Debug Support
-            - ✅ Phase 3 Sensors (BMI260, MMC5603, STK33911)
-            - ✅ USB-C / UFS 3.1 / GPU Support
-            - ✅ A/B Partition Support
-            
-            ## Testing
-            ```bash
-            # Fastboot boot
-            fastboot boot boot-spacewar.img
-            
-            # Or push to device
-            adb push boot-spacewar.img /data/
-            adb reboot bootloader
-            fastboot boot /data/boot-spacewar.img
-            ```
-            
-            ## Build Info
-            - **Build Time:** ${{ job.container.id || 'N/A' }}
-            - **Runner:** Ubuntu Latest
-            - **EDK2:** edk2-porting/edk2-msm
           files: edk2-msm/boot-spacewar.img
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Build Summary
-        if: always()
-        run: |
-          {
-            echo "## ✅ Build Summary"
-            echo ""
-            echo "| Item | Value |"
-            echo "|------|-------|"
-            echo "| **Status** | ${{ job.status }} |"
-            echo "| **Run** | [${{ github.run_number }}](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}) |"
-            echo "| **Commit** | \`${{ github.sha }}\` |"
-          } >> $GITHUB_STEP_SUMMARY
-          
-          if [ -f "edk2-msm/boot-spacewar.img" ]; then
-            SIZE=$(stat -c%s edk2-msm/boot-spacewar.img)
-            echo "| **Output Size** | $(numfmt --to=iec $SIZE) |" >> $GITHUB_STEP_SUMMARY
-          fi
