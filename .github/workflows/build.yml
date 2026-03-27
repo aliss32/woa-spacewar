@@ -109,6 +109,7 @@ jobs:
           mkdir -p edk2-msm/Platform/Nothing/sm7325/FdtBlob
           mkdir -p edk2-msm/Platform/Nothing/sm7325/FdtBlob_compat
           mkdir -p edk2-msm/Platform/Nothing/sm7325/Library/PlatformMemoryMapLib
+          mkdir -p edk2-msm/Platform/EFI_Binaries
 
           cp UEFI/Platform/Nothing/sm7325/spacewar.dsc \
              edk2-msm/Platform/Nothing/sm7325/spacewar.dsc
@@ -128,6 +129,9 @@ jobs:
           # Copy Spacewar specific libraries
           cp -r UEFI/Platform/Nothing/sm7325/Library/PlatformMemoryMapLib/* \
              edk2-msm/Platform/Nothing/sm7325/Library/PlatformMemoryMapLib/
+
+          # Copy Binary Drivers
+          cp -r UEFI/Platform/EFI_Binaries/* edk2-msm/Platform/EFI_Binaries/
 
           echo "=== Copied files ==="
           find edk2-msm/Platform/Nothing -type f | sort
