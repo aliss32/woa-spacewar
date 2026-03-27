@@ -23,17 +23,17 @@ jobs:
 
       - name: Setup Workspace Structure
         run: |
-          # 1. EDK2-MSM (Ana Framework) indir
+          # 1. Framework indir
           git clone --recursive https://github.com/edk2-porting/edk2-msm.git --depth 1 edk2_base
           
-          # 2. Simple-Init indir
-          git clone https://github.com/BigfootACA/simple-init.git SimpleInit
+          # 2. Simple-Init'i ALT MODÜLLERİYLE (recursive) beraber indir
+          # Hatanın çözümü bu satırdaki --recursive ekidir.
+          git clone --recursive https://github.com/BigfootACA/simple-init.git SimpleInit
           
-          # 3. SENİN REPO DOSYALARINI (UEFI içindekileri) edk2_base altına taşı
-          # Bu adım Platform klasörünü edk2_base/Platform haline getirir
+          # 3. Kendi dosyalarını kopyala
           cp -r UEFI/Platform edk2_base/
           
-          # 4. Binary sürücüleri (Sürücüler eksik kalmasın)
+          # 4. Binary sürücüleri çek
           git clone https://github.com/edk2-porting/edk2-msm-binary.git --depth 1 binaries
           mkdir -p edk2_base/Platform/EFI_Binaries/Drivers/Devices/spacewar
           cp -r binaries/Drivers/sm7325/* edk2_base/Platform/EFI_Binaries/Drivers/Devices/spacewar/ || true
