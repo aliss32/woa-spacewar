@@ -153,60 +153,55 @@ jobs:
           fi
           echo "DSDT.aml successfully created at $TARGET_DIR"
 
-      - name: Build UEFI (4-Step Robust Process)
-        run: |
-          # Define Cross-Compiler Prefix
-          export GCC5_AARCH64_PREFIX=aarch64-linux-gnu-
-          
-          # Set PACKAGES_PATH
-          export PACKAGES_PATH=$GITHUB_WORKSPACE/edk2-msm:$GITHUB_WORKSPACE/edk2-msm/Common/edk2
-          
-          cd edk2-msm
-          
-          echo "=== Step 2: Compilation (UEFI Only) ==="
-          ./build.sh -d spacewar -r RELEASE -u || echo "Build finished with post-processing naming error, proceeding to insurance sync..."
+          echo "=== Step 1.5: Patching Submodule FDF (Naming Fix) ==="
+          # Force EDK2 to produce the lowercase filename that the build scripts expect
+          FDF_PATH="edk2-msm/Platform/Qualcomm/sm7325/sm7325.fdf"
+          if [ -f "$FDF_PATH" ]; then
+            sed -i "s/SM7325_UEFI/sm7325_UEFI/g" "$FDF_PATH"
+            echo "Successfully patched $FDF_PATH"
+          else
+            echo "Warning: $FDF_PATH not found, searching..."
+            find edk2-msm -name "sm7325.fdf" -exec sed -i "s/SM7325_UEFI/sm7325_UEFI/g" {} +
+          fi
 
-          echo "=== Step 3: Insurance Sync (Both Case Names) ==="
-          echo "=== Step 3: Insurance Sync (Naming Fix) ==="
-          # Search for ANY .fd file in the entire edk2-msm directory
-          # We use a broad search because the exact workspace path can be tricky
+          echo "=== Step 2: Compilation (UEFI Only) ==="
+          ./build.sh -d spacewar -r RELEASE -u || echo "Compilation finished (check for post-proc errors)"
+
+          echo "=== Step 3: Insurance Sync (Failsafe) ==="
+          # Find the FD file regardless of its name
           FOUND_FD=$(find . -name "*.fd" | grep -i "UEFI.fd" | head -n 1)
           
           if [ ! -z "$FOUND_FD" ]; then
             echo "Found FD file at: $FOUND_FD"
             FV_DIR=$(dirname "$FOUND_FD")
             
-            # Ensure both sm7325_UEFI.fd and SM7325_UEFI.fd exist in that directory
-            # This satisfies all internal build.sh hardcoding
-            cp -f "$FOUND_FD" "$FV_DIR/sm7325_UEFI.fd" 2>/dev/null || true
-            cp -f "$FOUND_FD" "$FV_DIR/SM7325_UEFI.fd" 2>/dev/null || true
+            # Use symbolic links to ensure both names exist without duplication or cp errors
+            ln -sf "$(basename "$FOUND_FD")" "$FV_DIR/sm7325_UEFI.fd"
+            ln -sf "$(basename "$FOUND_FD")" "$FV_DIR/SM7325_UEFI.fd"
             
-            # Also sync to a common location just in case
+            # Backup sync to the predictable workspace path
             mkdir -p workspace/Build/spacewar/RELEASE_CLANG38/FV
-            cp -f "$FOUND_FD" workspace/Build/spacewar/RELEASE_CLANG38/FV/sm7325_UEFI.fd
-            cp -f "$FOUND_FD" workspace/Build/spacewar/RELEASE_CLANG38/FV/SM7325_UEFI.fd
+            cp -f "$FOUND_FD" workspace/Build/spacewar/RELEASE_CLANG38/FV/sm7325_UEFI.fd 2>/dev/null || true
+            cp -f "$FOUND_FD" workspace/Build/spacewar/RELEASE_CLANG38/FV/SM7325_UEFI.fd 2>/dev/null || true
             
-            echo "Sync complete. Directory content of $FV_DIR:"
-            ls -la "$FV_DIR/*.fd" || ls -la "$FV_DIR"
+            echo "Sync complete."
           else
-            echo "CRITICAL ERROR: No .fd file was generated anywhere!"
-            find . -maxdepth 5 -name "*" | grep -v ".git" | head -n 50
+            echo "CRITICAL ERROR: No .fd file was generated!"
             exit 1
           fi
 
           echo "=== Step 4: Final Packaging (boot.img generation) ==="
-          # Execute the packaging with fixed naming environment
           export SOC_PLATFORM=sm7325
-          ./build.sh -d spacewar -r RELEASE -A || (echo "Packaging script failed, attempting manual image creation..."; true)
+          ./build.sh -d spacewar -r RELEASE -A
 
           echo "=== Verification & Cleanup ==="
-          # If boot-spacewar.img is missing, find it or fail
-          if [ ! -f "boot-spacewar.img" ] && [ ! -f "edk2-msm/boot-spacewar.img" ]; then
-             echo "Final image not found in expected places, searching..."
+          if [ -f "boot-spacewar.img" ] || [ -f "edk2-msm/boot-spacewar.img" ]; then
+             echo "SUCCESS: boot-spacewar.img generated."
+          else
+             echo "Final image MISSING!"
              find . -name "boot-spacewar.img"
+             exit 1
           fi
-          
-          echo "Done with Step 4."
 
       - name: Verify build
         run: |
