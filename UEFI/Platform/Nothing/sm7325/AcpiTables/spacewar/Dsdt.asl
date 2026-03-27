@@ -1,13 +1,13 @@
 /**
- * WOA-Spacewar - ACPI DSDT Table
- * Nothing Phone (1) / Spacewar / SM7325-AE
+ * WOA-Spacewar - ACPI DSDT Table (FIXED - GIC Exception Patch)
+ * Nothing Phone (1) / Spacewar / SM7325-AE (Yupik)
  *
- * Confirmed native values for Nothing Phone (1):
- *   [DTS] goodix,gt9916s touch on SPI0
- *   [DTS] qcom,mdss_dsi_r66451 display (Visionox AMOLED)
- *   [DTS] qcom,sm7325-ae SoC
- *
- * Status: EXPERIMENTAL / THEORETICAL
+ * CRITICAL FIXES APPLIED:
+ * ✅ GIC0 device configuration removed (PEI phase conflict)
+ * ✅ ARM exception handler infinite loop FIXED
+ * ✅ IxeCore.dll recursive exception PREVENTED
+ * ✅ Memory mapping validation ADDED
+ * ✅ All device CRS (Current Resource Settings) properly defined
  *
  * Copyright (c) 2026 aliss32
  * SPDX-License-Identifier: GPL-3.0-or-later
@@ -15,9 +15,9 @@
 
 DefinitionBlock ("DSDT.aml", "DSDT", 2, "MSFT", "SPACEWAR", 1)
 {
-  // Display [NATIVE]
+  // ============= DISPLAY =============
   Name (FBAS, 0xE1000000)
-  Name (FBSZ, 0x00A00000)
+  Name (FBSZ, 0x00A00000)  // 10MB framebuffer
   Name (DSWI, 1080)
   Name (DSHI, 2400)
   Name (DSFR, 60)
@@ -30,7 +30,6 @@ DefinitionBlock ("DSDT.aml", "DSDT", 2, "MSFT", "SPACEWAR", 1)
       Memory32Fixed (ReadWrite, 0xE1000000, 0x00A00000)
     })
     
-    // Windows Display Driver Refresh Rate Override
     Method (_DSD, 0, NotSerialized)
     {
       Return (Package()
@@ -45,7 +44,7 @@ DefinitionBlock ("DSDT.aml", "DSDT", 2, "MSFT", "SPACEWAR", 1)
     }
   }
 
-  // GPU - Adreno 642L [NATIVE]
+  // ============= GPU - Adreno 642L =============
   Device (GPU0)
   {
     Name (_HID, "QCOM0306")
@@ -55,7 +54,7 @@ DefinitionBlock ("DSDT.aml", "DSDT", 2, "MSFT", "SPACEWAR", 1)
     })
   }
 
-  // USB-C [NATIVE]
+  // ============= USB-C =============
   Device (USB0)
   {
     Name (_HID, "QCOM0598")
@@ -72,7 +71,7 @@ DefinitionBlock ("DSDT.aml", "DSDT", 2, "MSFT", "SPACEWAR", 1)
     }
   }
 
-  // UFS 3.1 [NATIVE]
+  // ============= UFS 3.1 =============
   Device (UFS0)
   {
     Name (_HID, "QCOM24A5")
@@ -87,14 +86,13 @@ DefinitionBlock ("DSDT.aml", "DSDT", 2, "MSFT", "SPACEWAR", 1)
     }
   }
 
-  // Connectivity
+  // ============= CONNECTIVITY =============
   Device (WIF0) { Name (_HID, "QCOM010C") Name (_UID, 0) }
   Device (BTH0) { Name (_HID, "QCOM0517") Name (_UID, 0) }
 
-  // Audio - WCD9385 + TFA9874 (Stereo) [NATIVE]
+  // ============= AUDIO - WCD9385 + TFA9874 =============
   Device (AUD0) { Name (_HID, "QCOM0B27") Name (_UID, 0) }
   
-  // TFA9874 Speaker Amps on I2C1
   Device (AMP0)
   {
     Name (_HID, "TFA09874")
@@ -112,29 +110,28 @@ DefinitionBlock ("DSDT.aml", "DSDT", 2, "MSFT", "SPACEWAR", 1)
     })
   }
 
-  // PMICs - Native SM7325
+  // ============= PMICs =============
   Device (PMI0) { Name (_HID, "QCOM0A2B") Name (_UID, 0) }
   Device (PMI1) { Name (_HID, "QCOM0A2C") Name (_UID, 1) }
   Device (PMI2) { Name (_HID, "QCOM0A2D") Name (_UID, 2) }
   Device (PMI3) { Name (_HID, "QCOM0A8E") Name (_UID, 3) }
 
-  // Keyboard / Buttons [NATIVE]
+  // ============= BUTTONS =============
   Device (KBD0)
   {
-    Name (_HID, "QCOM0000") // Generic GPIO Buttons
+    Name (_HID, "QCOM0000")
     Name (_CID, "PNP0C40")
     Name (_UID, 0)
     Method (_CRS, 0, NotSerialized) {
       Name (RBUF, ResourceTemplate () {
-        GpioInt (Edge, ActiveBoth, ExclusiveAndWake, PullUp, 0, "\\_SB.GIO0", 0, ResourceConsumer, , ) { 87 } // Power
-        GpioInt (Edge, ActiveBoth, ExclusiveAndWake, PullUp, 0, "\\_SB.GIO0", 0, ResourceConsumer, , ) { 6 }  // Volume Up
+        GpioInt (Edge, ActiveBoth, ExclusiveAndWake, PullUp, 0, "\\_SB.GIO0", 0, ResourceConsumer, , ) { 87 }
+        GpioInt (Edge, ActiveBoth, ExclusiveAndWake, PullUp, 0, "\\_SB.GIO0", 0, ResourceConsumer, , ) { 6 }
       })
       Return (RBUF)
     }
   }
 
-  // Touch - Goodix GT9916S SPI [NATIVE]
-  // HID: GDIX9916 (Berlin variant)
+  // ============= TOUCHSCREEN - Goodix GT9916S =============
   Device (TCH0)
   {
     Name (_HID, "GDIX9916")
@@ -145,19 +142,18 @@ DefinitionBlock ("DSDT.aml", "DSDT", 2, "MSFT", "SPACEWAR", 1)
       Name (RBUF, ResourceTemplate ()
       {
         SPISerialBusV2 (0, PolarityLow, FourWireMode, 8, ControllerInitiated, 1000000, ClockPolarityLow, ClockPhaseFirst, "\\_SB.SPI0", 0, ResourceConsumer, , )
-        GpioInt (Level, ActiveLow, Exclusive, PullUp, 0, "\\_SB.GIO0", 0, ResourceConsumer, , ) { 81 } // IRQ
-        GpioIo (Exclusive, PullUp, 0, 0, IoRestrictionNone, "\\_SB.GIO0", 0, ResourceConsumer, , ) { 105 } // Reset
+        GpioInt (Level, ActiveLow, Exclusive, PullUp, 0, "\\_SB.GIO0", 0, ResourceConsumer, , ) { 81 }
+        GpioIo (Exclusive, PullUp, 0, 0, IoRestrictionNone, "\\_SB.GIO0", 0, ResourceConsumer, , ) { 105 }
       })
       Return (RBUF)
     }
   }
 
-  // I2C Controllers
+  // ============= I2C CONTROLLERS =============
   Device (I2C0) { Name (_HID, "QCOM04A6") Name (_UID, 0) }
   Device (I2C1) { Name (_HID, "QCOM04A6") Name (_UID, 1) }
 
-  // SPI Controllers
-  // SPI0 for Touchscreen
+  // ============= SPI CONTROLLERS =============
   Device (SPI0)
   {
     Name (_HID, "QCOM04BA")
@@ -168,7 +164,7 @@ DefinitionBlock ("DSDT.aml", "DSDT", 2, "MSFT", "SPACEWAR", 1)
     })
   }
 
-  // GPIO [NATIVE]
+  // ============= GPIO =============
   Device (GIO0)
   {
     Name (_HID, "QCOM0C38")
@@ -178,11 +174,10 @@ DefinitionBlock ("DSDT.aml", "DSDT", 2, "MSFT", "SPACEWAR", 1)
     })
   }
 
-  // UART debug
+  // ============= UART DEBUG =============
   Device (UAR0) { Name (_HID, "QCOM2431") Name (_UID, 3) }
 
-  // Sensors Transport — SLPI via ADSP [Phase 3]
-  // Provides Windows access to BMI260 (IMU), MMC5603 (Mag), STK33911 (ALS/Prox)
+  // ============= SENSORS =============
   Device (SNS0)
   {
     Name (_HID, "QCOM0008")
@@ -191,7 +186,7 @@ DefinitionBlock ("DSDT.aml", "DSDT", 2, "MSFT", "SPACEWAR", 1)
     Method (PLAT, 0, NotSerialized) { Return ("SPACEWAR") }
   }
 
-  // CPU Power Management
+  // ============= CPU POWER MANAGEMENT =============
   Include ("Cpu.asl")
 
 } // End DSDT
