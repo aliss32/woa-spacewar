@@ -36,24 +36,31 @@ jobs:
 
       - name: Clone SimpleInit & Generate RootFS (Upstream)
         run: |
+          # Remove existing SimpleInit if present in edk2-msm
+          rm -rf edk2-msm/GPLDrivers/Library/SimpleInit
+          
+          # Clone upstream SimpleInit into edk2-msm structure
           git clone https://github.com/BigfootACA/simple-init.git \
-            --recursive --depth=1 SimpleInit
-          cd SimpleInit
+            --recursive --depth=1 edk2-msm/GPLDrivers/Library/SimpleInit
+          
+          cd edk2-msm/GPLDrivers/Library/SimpleInit
           mkdir -p build
           # Generate rootfs using upstream script
           bash ./scripts/gen-rootfs-source.sh . build
-          # Verify rootfs.c exists for UEFI build (BigfootACA script generates this by default)
+          # Verify rootfs.c exists for UEFI build
           ls -la build/rootfs.c || (echo "rootfs.c generation FAILED"; exit 1)
 
       - name: Patch EDK2 BaseTools (Fix Python Syntax Warnings)
         run: |
           echo "Patching invalid escape sequences in edk2-msm/Common/edk2/BaseTools..."
-          # Target common re module pattern to use raw strings
+          # Target common re module pattern to use raw strings (handles single and double quotes)
           find edk2-msm/Common/edk2/BaseTools -name "*.py" -exec sed -i "s/re.compile('/re.compile(r'/g" {} +
+          find edk2-msm/Common/edk2/BaseTools -name "*.py" -exec sed -i 's/re.compile("/re.compile(r"/g' {} +
           find edk2-msm/Common/edk2/BaseTools -name "*.py" -exec sed -i "s/re.search('/re.search(r'/g" {} +
-          find edk2-msm/Common/edk2/BaseTools -name "*.py" -exec sed -i "s/re.sub('/re.sub(r'/g" {} +
-          # Fix common specific patterns
-          sed -i "s/'\[1-9]\\\\d\*|0\$'/r'[1-9]\\\\d*|0$'/g" edk2-msm/Common/edk2/BaseTools/Source/Python/Workspace/DscBuildData.py || true
+          find edk2-msm/Common/edk2/BaseTools -name "*.py" -exec sed -i 's/re.search("/re.search(r"/g' {} +
+          
+          # Fix specific problematic lines in DscBuildData
+          sed -i 's/ARRAY_INDEX = re.compile("\[\\s\*/ARRAY_INDEX = re.compile(r"\[\\s*/g' edk2-msm/Common/edk2/BaseTools/Source/Python/Common/Misc.py || true
 
       - name: Prepare Yupik DTB
         run: |
@@ -101,9 +108,7 @@ jobs:
 
       - name: Copy Spacewar files into edk2-msm
         run: |
-          cp UEFI/configs/devices/spacewar.conf \
-             edk2-msm/configs/devices/spacewar.conf
-
+          # 1. Create ALL required directories first
           mkdir -p edk2-msm/configs/devices
           mkdir -p edk2-msm/Platform/Nothing/sm7325/AcpiTables/spacewar
           mkdir -p edk2-msm/Platform/Nothing/sm7325/FdtBlob
@@ -111,29 +116,24 @@ jobs:
           mkdir -p edk2-msm/Platform/Nothing/sm7325/Library/PlatformMemoryMapLib
           mkdir -p edk2-msm/Platform/EFI_Binaries
 
-          cp UEFI/Platform/Nothing/sm7325/spacewar.dsc \
-             edk2-msm/Platform/Nothing/sm7325/spacewar.dsc
-          cp UEFI/Platform/Nothing/sm7325/spacewar.fdf.inc \
-             edk2-msm/Platform/Nothing/sm7325/spacewar.fdf.inc
+          # 2. Copy files with force overwrite
+          cp -f UEFI/configs/devices/spacewar.conf edk2-msm/configs/devices/spacewar.conf
+          cp -f UEFI/Platform/Nothing/sm7325/spacewar.dsc edk2-msm/Platform/Nothing/sm7325/spacewar.dsc
+          cp -f UEFI/Platform/Nothing/sm7325/spacewar.fdf.inc edk2-msm/Platform/Nothing/sm7325/spacewar.fdf.inc
 
-          # Copy ALL ACPI tables
-          cp -r UEFI/Platform/Nothing/sm7325/AcpiTables/spacewar/* \
-             edk2-msm/Platform/Nothing/sm7325/AcpiTables/spacewar/
+          # 3. Copy directory contents
+          cp -rf UEFI/Platform/Nothing/sm7325/AcpiTables/spacewar/* edk2-msm/Platform/Nothing/sm7325/AcpiTables/spacewar/
+          cp -rf UEFI/Platform/Nothing/sm7325/Library/PlatformMemoryMapLib/* edk2-msm/Platform/Nothing/sm7325/Library/PlatformMemoryMapLib/
+          cp -rf UEFI/Platform/EFI_Binaries/* edk2-msm/Platform/EFI_Binaries/
 
-          # Copy DTB files
-          cp edk2-msm/Platform/Xiaomi/sm7325/FdtBlob/sm7325-generic-msd.dtb \
-             edk2-msm/Platform/Nothing/sm7325/FdtBlob/sm7325-generic-msd.dtb
-          cp spacewar.dtb \
-             edk2-msm/Platform/Nothing/sm7325/FdtBlob_compat/spacewar.dtb
+          # 4. Copy DTB files
+          cp -f edk2-msm/Platform/Xiaomi/sm7325/FdtBlob/sm7325-generic-msd.dtb edk2-msm/Platform/Nothing/sm7325/FdtBlob/sm7325-generic-msd.dtb
+          cp -f spacewar.dtb edk2-msm/Platform/Nothing/sm7325/FdtBlob_compat/spacewar.dtb
 
-          # Copy Spacewar specific libraries
-          cp -r UEFI/Platform/Nothing/sm7325/Library/PlatformMemoryMapLib/* \
-             edk2-msm/Platform/Nothing/sm7325/Library/PlatformMemoryMapLib/
-
-          # Copy Binary Drivers
-          cp -r UEFI/Platform/EFI_Binaries/* edk2-msm/Platform/EFI_Binaries/
-
-          echo "=== Copied files ==="
+          echo "=== Verification: Checking spacewar.fdf.inc content ==="
+          head -n 5 edk2-msm/Platform/Nothing/sm7325/spacewar.fdf.inc
+          
+          echo "=== Copied files list ==="
           find edk2-msm/Platform/Nothing -type f | sort
 
       - name: Build UEFI
@@ -141,8 +141,8 @@ jobs:
           # Define Cross-Compiler Prefix
           export GCC5_AARCH64_PREFIX=aarch64-linux-gnu-
           
-          # Set PACKAGES_PATH to include all required components
-          export PACKAGES_PATH=$GITHUB_WORKSPACE/edk2-msm:$GITHUB_WORKSPACE/edk2-msm/Common/edk2:$GITHUB_WORKSPACE/SimpleInit
+          # Set PACKAGES_PATH (SimpleInit is now inside edk2-msm)
+          export PACKAGES_PATH=$GITHUB_WORKSPACE/edk2-msm:$GITHUB_WORKSPACE/edk2-msm/Common/edk2
           
           echo "PACKAGES_PATH: $PACKAGES_PATH"
           
