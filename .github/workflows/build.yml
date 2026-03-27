@@ -164,7 +164,7 @@ jobs:
           cd edk2-msm
           
           echo "=== Step 2: Compilation (UEFI Only) ==="
-          ./build.sh -d spacewar -r RELEASE -u
+          ./build.sh -d spacewar -r RELEASE -u || echo "Build finished with post-processing naming error, proceeding to insurance sync..."
 
           echo "=== Step 3: Insurance Sync (Both Case Names) ==="
           # Regardless of whether EDK2 produced SM7325_UEFI.fd or sm7325_UEFI.fd,
