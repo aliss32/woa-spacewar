@@ -163,50 +163,40 @@ jobs:
           
           cd edk2-msm
           
-          echo "=== Step 1.1: Pre-build Cleanup (Anti-Link Cycle) ==="
-          # Destroy any existing .fd files or link loops before starting
-          find . -name "*.fd" -exec rm -f {} + 2>/dev/null || true
+          echo "=== Step 1.1: Nuclear Workspace Wipe (Anti-Link Cycle) ==="
+          # Completely delete workspace to prevent any circular symlink loops (Errno 40)
+          rm -rf workspace
+          mkdir -p workspace
           
-          echo "=== Step 1.5: Patching Submodule FDF (Naming Fix) ==="
-          # Force EDK2 to produce the lowercase filename that the build scripts expect
-          FDF_PATH="Platform/Qualcomm/sm7325/sm7325.fdf"
-          if [ -f "$FDF_PATH" ]; then
-            sed -i "s/SM7325_UEFI/sm7325_UEFI/g" "$FDF_PATH"
-            echo "Successfully patched $FDF_PATH"
-          else
-            echo "Warning: $FDF_PATH not found, searching..."
-            find . -name "sm7325.fdf" -exec sed -i "s/SM7325_UEFI/sm7325_UEFI/g" {} +
-          fi
+          echo "=== Step 1.5: Patching Submodule FDF (Casing Fix) ==="
+          # Standardize SoC platform paths to lowercase
+          find Platform/Qualcomm/sm7325 -name "*.fdf" -exec sed -i "s/SM7325_UEFI/sm7325_UEFI/g" {} + 2>/dev/null || true
 
           echo "=== Step 2: Compilation (UEFI Only) ==="
           ./build.sh -d spacewar -r RELEASE -u || echo "Compilation finished (check for post-proc errors)"
 
-          echo "=== Step 3: Safe Naming Sync (Physical Copies Only) ==="
-          # Find the FD file regardless of its name
-          FOUND_FD=$(find . -name "*.fd" | grep -i "UEFI.fd" | head -n 1)
+          echo "=== Step 3: Dynamic FD Discovery (Case-Insensitive) ==="
+          # Find any .fd file produced by EDK2, regardless of Uppercase/lowercase casing
+          FOUND_FD=$(find workspace/Build/spacewar -name "*.fd" | grep -v "FVMAIN" | head -n 1)
           
-          if [ ! -z "$FOUND_FD" ]; then
-            echo "Found FD file at: $FOUND_FD"
-            FV_DIR=$(dirname "$FOUND_FD")
-            
-            # Use physical copies instead of symbolic links to prevent circular link errors (Errno 40)
-            cp -f "$FOUND_FD" "$FV_DIR/uefi_temp_backup.fd"
-            rm -f "$FV_DIR/sm7325_UEFI.fd" "$FV_DIR/SM7325_UEFI.fd"
-            cp -f "$FV_DIR/uefi_temp_backup.fd" "$FV_DIR/sm7325_UEFI.fd"
-            cp -f "$FV_DIR/uefi_temp_backup.fd" "$FV_DIR/SM7325_UEFI.fd"
-            rm -f "$FV_DIR/uefi_temp_backup.fd"
-            
-            # Backup sync to the predictable workspace path
-            mkdir -p workspace/Build/spacewar/RELEASE_CLANG38/FV
-            cp -f "$FOUND_FD" workspace/Build/spacewar/RELEASE_CLANG38/FV/sm7325_UEFI.fd 2>/dev/null || true
-            cp -f "$FOUND_FD" workspace/Build/spacewar/RELEASE_CLANG38/FV/SM7325_UEFI.fd 2>/dev/null || true
-            
-            echo "Safe sync complete."
-          else
-            echo "CRITICAL ERROR: No .fd file was generated!"
+          if [ -z "$FOUND_FD" ]; then
+            echo "CRITICAL ERROR: EDK2 did NOT generate any .fd file!"
             exit 1
           fi
-
+          
+          # VALIDATION: Check file size (must be > 1MB)
+          FD_SIZE=$(stat -c%s "$FOUND_FD")
+          echo "Found FD at $FOUND_FD (Size: $FD_SIZE bytes)"
+          if [ "$FD_SIZE" -lt 1000000 ]; then
+            echo "ERROR: Generated .fd file is too small ($FD_SIZE bytes). Build failed!"
+            exit 1
+          fi
+          
+          # Standardize name for the packaging script
+          FV_DIR=$(dirname "$FOUND_FD")
+          cp -f "$FOUND_FD" "$FV_DIR/sm7325_UEFI.fd"
+          cp -f "$FOUND_FD" "$FV_DIR/SM7325_UEFI.fd"
+          
           echo "=== Step 4: Final Packaging (boot.img generation) ==="
           export SOC_PLATFORM=sm7325
           ./build.sh -d spacewar -r RELEASE -A
