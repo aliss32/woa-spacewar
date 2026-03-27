@@ -157,6 +157,9 @@ jobs:
         run: |
           # 1. Setup EDK2 Environment
           export GCC5_AARCH64_PREFIX=aarch64-linux-gnu-
+          export CLANG38_AARCH64_PREFIX=aarch64-linux-gnu-
+          export OBJCOPY=aarch64-linux-gnu-objcopy
+          export STRIP=aarch64-linux-gnu-strip
           export PACKAGES_PATH=$GITHUB_WORKSPACE/edk2-msm:$GITHUB_WORKSPACE/edk2-msm/Common/edk2:$GITHUB_WORKSPACE/edk2-msm/Common/edk2-platforms:$GITHUB_WORKSPACE/edk2-msm/GPLDrivers/Library/SimpleInit
           export EDK_TOOLS_PATH=$GITHUB_WORKSPACE/edk2-msm/Common/edk2/BaseTools
           
