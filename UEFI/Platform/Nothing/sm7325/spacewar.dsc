@@ -1,5 +1,5 @@
 [Defines]
-  ENABLE_LINUX_UTILS             = 0
+  ENABLE_LINUX_UTILS             = 1
   VENDOR_NAME                    = Nothing
   PLATFORM_NAME                  = spacewar
   PLATFORM_GUID                  = 2a2c9e2b-3f4d-4a1b-8c5e-1d6f7a8b9c0d
