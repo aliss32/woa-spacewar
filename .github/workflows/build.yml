@@ -10,6 +10,8 @@ on:
 
 jobs:
   build:
+    env:
+      USE_IASL: "true"
     runs-on: ubuntu-latest
 
     steps:
@@ -31,6 +33,15 @@ jobs:
         run: |
           git clone https://github.com/edk2-porting/edk2-msm.git \
             --recursive --depth=1 edk2-msm
+
+      - name: Patch EDK2 BaseTools (Fix Python Syntax Warnings)
+        run: |
+          echo "Patching invalid escape sequences in edk2-msm/Common/edk2/BaseTools..."
+          find edk2-msm/Common/edk2/BaseTools -name "*.py" -exec sed -i "s/ = '/ = r'/g" {} +
+          find edk2-msm/Common/edk2/BaseTools -name "*.py" -exec sed -i "s/('.*\\\\.')/r\1/g" {} +
+          # Target specific files from logs if generic grep is too aggressive
+          sed -i "s/'\[1-9]\\\\d\*|0\$'/r'[1-9]\\\\d*|0$'/g" edk2-msm/Common/edk2/BaseTools/Source/Python/Workspace/DscBuildData.py
+          sed -i "s/',\[\\\\s]\*'/r',[\s]*'/g" edk2-msm/Common/edk2/BaseTools/Source/Python/Workspace/Workspace/MetaFileParser.py || true
 
       - name: Prepare Yupik DTB
         run: |
@@ -90,11 +101,9 @@ jobs:
           cp UEFI/Platform/Nothing/sm7325/spacewar.fdf.inc \
              edk2-msm/Platform/Nothing/sm7325/spacewar.fdf.inc
 
-          # Copy ALL ACPI tables (DSDT.asl + Cpu.asl)
-          cp UEFI/Platform/Nothing/sm7325/AcpiTables/spacewar/Dsdt.asl \
-             edk2-msm/Platform/Nothing/sm7325/AcpiTables/spacewar/Dsdt.asl
-          cp UEFI/Platform/Nothing/sm7325/AcpiTables/spacewar/Cpu.asl \
-             edk2-msm/Platform/Nothing/sm7325/AcpiTables/spacewar/Cpu.asl
+          # Copy ALL ACPI tables
+          cp -r UEFI/Platform/Nothing/sm7325/AcpiTables/spacewar/* \
+             edk2-msm/Platform/Nothing/sm7325/AcpiTables/spacewar/
 
           # Copy DTB files
           cp edk2-msm/Platform/Xiaomi/sm7325/FdtBlob/sm7325-generic-msd.dtb \
@@ -103,8 +112,7 @@ jobs:
              edk2-msm/Platform/Nothing/sm7325/FdtBlob_compat/spacewar.dtb
 
           # Copy Spacewar specific libraries
-          mkdir -p edk2-msm/Platform/Nothing/sm7325/Library/PlatformMemoryMapLib
-          cp UEFI/Platform/Nothing/sm7325/Library/PlatformMemoryMapLib/* \
+          cp -r UEFI/Platform/Nothing/sm7325/Library/PlatformMemoryMapLib/* \
              edk2-msm/Platform/Nothing/sm7325/Library/PlatformMemoryMapLib/
 
           echo "=== Copied files ==="
