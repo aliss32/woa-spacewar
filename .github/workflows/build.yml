@@ -153,6 +153,8 @@ jobs:
           fi
           echo "DSDT.aml successfully created at $TARGET_DIR"
 
+      - name: Build UEFI (Final Resilience Fix)
+        run: |
           # Define Cross-Compiler Prefix
           export GCC5_AARCH64_PREFIX=aarch64-linux-gnu-
           
@@ -160,6 +162,10 @@ jobs:
           export PACKAGES_PATH=$GITHUB_WORKSPACE/edk2-msm:$GITHUB_WORKSPACE/edk2-msm/Common/edk2
           
           cd edk2-msm
+          
+          echo "=== Step 1.1: Pre-build Cleanup (Anti-Link Cycle) ==="
+          # Destroy any existing .fd files or link loops before starting
+          find . -name "*.fd" -exec rm -f {} + 2>/dev/null || true
           
           echo "=== Step 1.5: Patching Submodule FDF (Naming Fix) ==="
           # Force EDK2 to produce the lowercase filename that the build scripts expect
@@ -175,7 +181,7 @@ jobs:
           echo "=== Step 2: Compilation (UEFI Only) ==="
           ./build.sh -d spacewar -r RELEASE -u || echo "Compilation finished (check for post-proc errors)"
 
-          echo "=== Step 3: Insurance Sync (Failsafe) ==="
+          echo "=== Step 3: Safe Naming Sync (Physical Copies Only) ==="
           # Find the FD file regardless of its name
           FOUND_FD=$(find . -name "*.fd" | grep -i "UEFI.fd" | head -n 1)
           
@@ -183,16 +189,19 @@ jobs:
             echo "Found FD file at: $FOUND_FD"
             FV_DIR=$(dirname "$FOUND_FD")
             
-            # Use symbolic links to ensure both names exist without duplication or cp errors
-            ln -sf "$(basename "$FOUND_FD")" "$FV_DIR/sm7325_UEFI.fd"
-            ln -sf "$(basename "$FOUND_FD")" "$FV_DIR/SM7325_UEFI.fd"
+            # Use physical copies instead of symbolic links to prevent circular link errors (Errno 40)
+            cp -f "$FOUND_FD" "$FV_DIR/uefi_temp_backup.fd"
+            rm -f "$FV_DIR/sm7325_UEFI.fd" "$FV_DIR/SM7325_UEFI.fd"
+            cp -f "$FV_DIR/uefi_temp_backup.fd" "$FV_DIR/sm7325_UEFI.fd"
+            cp -f "$FV_DIR/uefi_temp_backup.fd" "$FV_DIR/SM7325_UEFI.fd"
+            rm -f "$FV_DIR/uefi_temp_backup.fd"
             
             # Backup sync to the predictable workspace path
             mkdir -p workspace/Build/spacewar/RELEASE_CLANG38/FV
             cp -f "$FOUND_FD" workspace/Build/spacewar/RELEASE_CLANG38/FV/sm7325_UEFI.fd 2>/dev/null || true
             cp -f "$FOUND_FD" workspace/Build/spacewar/RELEASE_CLANG38/FV/SM7325_UEFI.fd 2>/dev/null || true
             
-            echo "Sync complete."
+            echo "Safe sync complete."
           else
             echo "CRITICAL ERROR: No .fd file was generated!"
             exit 1
