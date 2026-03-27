@@ -41,14 +41,18 @@ jobs:
 
       - name: Prepare Workspace & Merge Files
         run: |
-          # 1. Senin repondaki UEFI klasöründeki her şeyi edk2 ana dizinine kopyala
+          # 1. C++ Derleme Hatasını Yamala (uintptr_t hatası için)
+          sed -i '1i #include <stdint.h>' edk2/Common/edk2/BaseTools/Source/C/VfrCompile/VfrCompiler.cpp
+          sed -i '1i #include <stdint.h>' edk2/Common/edk2/BaseTools/Source/C/VfrCompile/VfrUtilityLib.cpp
+
+          # 2. Senin repondaki UEFI klasöründeki her şeyi edk2 ana dizinine kopyala
           cp -r local-repo/UEFI/* edk2/
           
-          # 2. Binary sürücüleri fdf.inc'in beklediği yapıya oturt
+          # 3. Binary sürücüleri fdf.inc'in beklediği yapıya oturt
           mkdir -p edk2/Platform/EFI_Binaries
           cp -r binaries/* edk2/Platform/EFI_Binaries/
           
-          # spacewar.fdf.inc özellikle "Devices/spacewar" yolunu aradığı için sm7325 sürücülerini oraya da kopyalıyoruz
+          # spacewar.fdf.inc yolu için sm7325 sürücülerini kopyala
           mkdir -p edk2/Platform/EFI_Binaries/Drivers/Devices/spacewar
           cp -r binaries/Drivers/sm7325/* edk2/Platform/EFI_Binaries/Drivers/Devices/spacewar/ || true
 
