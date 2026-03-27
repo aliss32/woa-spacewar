@@ -162,7 +162,7 @@ jobs:
         run: |
           # 1. Setup EDK2 Environment
           # (Variables now managed at job-level env)
-          export PACKAGES_PATH=$GITHUB_WORKSPACE/edk2-msm:$GITHUB_WORKSPACE/edk2-msm/Common/edk2:$GITHUB_WORKSPACE/edk2-msm/Common/edk2-platforms:$GITHUB_WORKSPACE/edk2-msm/GPLDrivers/Library/SimpleInit
+          export PACKAGES_PATH=$GITHUB_WORKSPACE/edk2-msm:$GITHUB_WORKSPACE/edk2-msm/Common/edk2:$GITHUB_WORKSPACE/edk2-msm/Common/edk2-platforms
           export EDK_TOOLS_PATH=$GITHUB_WORKSPACE/edk2-msm/Common/edk2/BaseTools
           
           cd edk2-msm
