@@ -37,3 +37,7 @@
   gRenegadePkgTokenSpaceGuid.PcdDeviceVendor|"Nothing"
   gRenegadePkgTokenSpaceGuid.PcdDeviceProduct|"Phone (1)"
   gRenegadePkgTokenSpaceGuid.PcdDeviceCodeName|"spacewar"
+
+[Components.common]
+  # SimpleInit Boot Menu
+  GPLDrivers/Library/SimpleInit/src/main/SimpleInitMain.inf
