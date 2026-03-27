@@ -23,20 +23,33 @@ jobs:
 
       - name: Setup Workspace Structure
         run: |
-          # 1. EDK2-MSM (Framework) indir
+          # 1. EDK2-MSM (Ana Framework) indir
           git clone --recursive https://github.com/edk2-porting/edk2-msm.git --depth 1 edk2_base
           
           # 2. Simple-Init indir
           git clone https://github.com/BigfootACA/simple-init.git SimpleInit
           
-          # 3. SENİN DOSYALARINI (UEFI/Platform içindekileri) edk2_base içine taşı
-          # Senin yapın: UEFI/Platform/... -> Hedef: edk2_base/Platform/...
+          # 3. SENİN REPO DOSYALARINI (UEFI içindekileri) edk2_base altına taşı
+          # Bu adım Platform klasörünü edk2_base/Platform haline getirir
           cp -r UEFI/Platform edk2_base/
           
-          # 4. Binary sürücüleri indir ve harmanla
+          # 4. Binary sürücüleri (Sürücüler eksik kalmasın)
           git clone https://github.com/edk2-porting/edk2-msm-binary.git --depth 1 binaries
           mkdir -p edk2_base/Platform/EFI_Binaries/Drivers/Devices/spacewar
           cp -r binaries/Drivers/sm7325/* edk2_base/Platform/EFI_Binaries/Drivers/Devices/spacewar/ || true
+
+      - name: Compile ACPI Tables (DSDT)
+        run: |
+          # ACPI kaynak kodlarının olduğu dizine git
+          cd UEFI/Platform/Nothing/sm7325/AcpiTables/spacewar/
+          
+          # DSDT.asl dosyasını derleyerek DSDT.aml oluştur
+          # cpu.asl, DSDT.asl içinde include edildiyse otomatik dahil edilir
+          iasl -p DSDT.aml DSDT.asl
+          
+          # Derlenen dosyayı derleyicinin arayacağı klasöre kopyala
+          mkdir -p ../../../../../../edk2_base/Platform/Nothing/sm7325/AcpiTables/spacewar/
+          cp DSDT.aml ../../../../../../edk2_base/Platform/Nothing/sm7325/AcpiTables/spacewar/
 
       - name: Build BaseTools
         run: |
@@ -48,14 +61,16 @@ jobs:
 
       - name: Build Spacewar UEFI
         run: |
+          # Cross-Compiler tanımla
           export GCC5_AARCH64_PREFIX=aarch64-linux-gnu-
+          
           cd edk2_base/Common/edk2
           . ./edksetup.sh
           
-          # PACKAGES_PATH'i tüm klasörleri kapsayacak şekilde kuruyoruz
+          # Tüm paket yollarını derleyiciye aç
           export PACKAGES_PATH=$GITHUB_WORKSPACE/edk2_base:$GITHUB_WORKSPACE/edk2_base/Common/edk2:$GITHUB_WORKSPACE/SimpleInit
           
-          # DSC yolunu senin verdiğin yeni yapıya göre güncelledik:
+          # Derleme komutunu çalıştır
           build -a AARCH64 \
                 -p $GITHUB_WORKSPACE/edk2_base/Platform/Nothing/sm7325/spacewar.dsc \
                 -t GCC5 \
@@ -65,4 +80,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: spacewar-uefi
-          path: edk2_base/Build/spacewar/RELEASE_GCC5/FV/spacewar.fd
+          path: edk2_base/Build/spacewar/RELEASE_GCC5/FV/sm7325_UEFI.fd
