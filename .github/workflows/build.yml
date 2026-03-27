@@ -1,55 +1,45 @@
-name: Build WOA-Spacewar UEFI
+name: Build Spacewar UEFI
 
 on:
   push:
+    branches: [ main ]
+  pull_request:
     branches: [ main ]
   workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-latest
-
+    
     steps:
-      - name: Checkout repository
+      - name: Checkout
         uses: actions/checkout@v4
-
-      - name: Install dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y build-essential uuid-dev iasl git gcc-aarch64-linux-gnu bc device-tree-compiler python3 python3-pip
-
-      - name: Clone edk2-msm
-        run: |
-          # Temel UEFI reposunu indir
-          git clone https://github.com/WOA-Project/edk2-msm.git --depth 1
-          cd edk2-msm
-          git submodule update --init --recursive
-
-      - name: Setup Device & Inject Memory Map
-        run: |
-          # 1. Senin Spacewar klasörlerini ana çalışma alanına kopyala
-          cp -r UEFI/configs/devices/spacewar.conf edk2-msm/configs/devices/
-          cp -r UEFI/Platform/Nothing edk2-msm/Platform/
-
-          # 2. THE HIJACK (Kurşun Geçirmez Yama)
-          # Senin C dosyanı, orijinal Qualcomm dosyasının üzerine zorla yazıyoruz (-f).
-          # Bu sayede EDK2, senin GIC ve UART adreslerini hatasız derler.
-          cp -f UEFI/Platform/Nothing/sm7325/Library/PlatformMemoryMapLib/PlatformMemoryMapLib.c edk2-msm/Silicon/Qualcomm/sm7325/Library/PlatformMemoryMapLib/PlatformMemoryMapLib.c
-
-          # 3. DSC İçindeki Yönlendirmeyi Temizle
-          # DSC dosyan senin özel kütüphanene bakmaya çalışmasın, orijinali (bizim yamaladığımızı) kullansın diye o satırı siliyoruz.
-          sed -i '/PlatformMemoryMapLib|/d' edk2-msm/Platform/Nothing/sm7325/spacewar.dsc
-
-      - name: Build UEFI
-        run: |
-          cd edk2-msm
-          export CROSS_COMPILE=aarch64-linux-gnu-
-          # Build işlemini başlat
-          ./build.sh --device spacewar
-
-      - name: Upload Build Artifacts
-        uses: actions/upload-artifact@v4
         with:
-          name: UEFI-Spacewar
-          # Çıkan .fd (veya .img) dosyasını GitHub Actions'a yükle
-          path: edk2-msm/workspace/Build/spacewar/DEBUG_GCC5/FV/SM7325_EFI.fd
+          submodules: recursive
+
+      - name: Install Dependencies
+        run: |
+          sudo apt update
+          sudo apt install -y build-essential uuid-dev iasl git nasm python3-distutils
+
+      - name: Setup EDK2
+        run: |
+          make -C BaseTools
+          source edksetup.sh
+
+      - name: Build Spacewar UEFI
+        run: |
+          # Görseldeki yeni dizin yapısına göre yollar
+          DEVICE_DSC="Platform/Nothing/sm7325/spacewar.dsc"
+          
+          build -a AARCH64 \
+                -p "$DEVICE_DSC" \
+                -t GCC5 \
+                -b RELEASE \
+                -D FIRMWARE_VER=0.1
+                
+      - name: Upload Artifacts
+        uses: actions/checkout@v4
+        with:
+          name: spacewar-uefi
+          path: Build/spacewar/RELEASE_GCC5/FV/
