@@ -153,15 +153,23 @@ jobs:
           fi
           echo "DSDT.aml successfully created at $TARGET_DIR"
 
+          # Define Cross-Compiler Prefix
+          export GCC5_AARCH64_PREFIX=aarch64-linux-gnu-
+          
+          # Set PACKAGES_PATH
+          export PACKAGES_PATH=$GITHUB_WORKSPACE/edk2-msm:$GITHUB_WORKSPACE/edk2-msm/Common/edk2
+          
+          cd edk2-msm
+          
           echo "=== Step 1.5: Patching Submodule FDF (Naming Fix) ==="
           # Force EDK2 to produce the lowercase filename that the build scripts expect
-          FDF_PATH="edk2-msm/Platform/Qualcomm/sm7325/sm7325.fdf"
+          FDF_PATH="Platform/Qualcomm/sm7325/sm7325.fdf"
           if [ -f "$FDF_PATH" ]; then
             sed -i "s/SM7325_UEFI/sm7325_UEFI/g" "$FDF_PATH"
             echo "Successfully patched $FDF_PATH"
           else
             echo "Warning: $FDF_PATH not found, searching..."
-            find edk2-msm -name "sm7325.fdf" -exec sed -i "s/SM7325_UEFI/sm7325_UEFI/g" {} +
+            find . -name "sm7325.fdf" -exec sed -i "s/SM7325_UEFI/sm7325_UEFI/g" {} +
           fi
 
           echo "=== Step 2: Compilation (UEFI Only) ==="
