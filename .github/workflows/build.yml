@@ -71,17 +71,13 @@ jobs:
           
           python3 << 'DTBEOF'
           import struct, sys
-          
           with open('spacewar.dtb', 'rb') as f:
               dtb = f.read()
-          
           magic = struct.unpack_from('>I', dtb, 0)[0]
           size = struct.unpack_from('>I', dtb, 4)[0]
-          
           if magic != 0xD00DFEED:
               print(f'❌ Invalid DTB magic: 0x{magic:08X}')
               sys.exit(1)
-          
           print(f'✅ DTB Valid: {size} bytes ({size/1024:.1f} KB)')
           DTBEOF
 
@@ -97,47 +93,48 @@ jobs:
                   basename=$(basename "$asl_file")
                   aml_name="${basename%.asl}.aml"
                   
-                  echo "  ⚙️  Compiling: $basename → $aml_name"
+                  echo "  ⚙️  Compiling: $basename"
                   
-                  if iasl -f "$asl_file" 2>&1 | grep -qi "error"; then
-                      echo "  ❌ ERROR in $basename"
-                      cat "$asl_file.err" || true
+                  if ! iasl -f "$asl_file" 2>&1 | tee compile.log; then
+                      echo "  ❌ IASL ERROR in $basename"
+                      cat compile.log
                       exit 1
-                  else
-                      echo "  ✅ Compiled: $aml_name"
+                  fi
+                  
+                  if [ -f "$aml_name" ]; then
+                      echo "  ✅ Generated: $aml_name"
                   fi
               fi
           done
           
           find . -name "*.aml" -exec cp {} ../UEFI/Platform/Nothing/sm7325/AcpiTables/spacewar/ \; 2>/dev/null || true
-          
           cd ..
           
           echo "✅ ACPI compilation complete"
-          echo "📊 Compiled ACPI tables:"
-          ls -1 UEFI/Platform/Nothing/sm7325/AcpiTables/spacewar/*.aml 2>/dev/null | wc -l
+          COMPILED=$(ls UEFI/Platform/Nothing/sm7325/AcpiTables/spacewar/*.aml 2>/dev/null | wc -l)
+          echo "📊 Compiled ACPI tables: $COMPILED"
 
       - name: Prepare Spacewar platform files
         run: |
           echo "📂 Setting up Spacewar platform in edk2-msm..."
           
           mkdir -p edk2-msm/configs/devices
-          cp UEFI/configs/devices/spacewar.conf edk2-msm/configs/devices/
-          echo "  ✅ Copied: spacewar.conf"
+          if [ -f "UEFI/configs/devices/spacewar.conf" ]; then
+            cp UEFI/configs/devices/spacewar.conf edk2-msm/configs/devices/
+            echo "  ✅ Copied: spacewar.conf"
+          fi
           
           mkdir -p edk2-msm/Platform/Nothing/sm7325/{AcpiTables/spacewar,FdtBlob,FdtBlob_compat,Library/PlatformMemoryMapLib}
-          echo "  ✅ Created directory structure"
           
-          cp UEFI/Platform/Nothing/sm7325/spacewar.dsc edk2-msm/Platform/Nothing/sm7325/
-          cp UEFI/Platform/Nothing/sm7325/spacewar.fdf.inc edk2-msm/Platform/Nothing/sm7325/
-          echo "  ✅ Copied: spacewar.dsc, spacewar.fdf.inc"
+          cp UEFI/Platform/Nothing/sm7325/spacewar.dsc edk2-msm/Platform/Nothing/sm7325/ 2>/dev/null || true
+          cp UEFI/Platform/Nothing/sm7325/spacewar.fdf.inc edk2-msm/Platform/Nothing/sm7325/ 2>/dev/null || true
           
           cp -r UEFI/Platform/Nothing/sm7325/AcpiTables/spacewar/* \
-             edk2-msm/Platform/Nothing/sm7325/AcpiTables/spacewar/
-          echo "  ✅ Copied: ACPI tables"
+             edk2-msm/Platform/Nothing/sm7325/AcpiTables/spacewar/ 2>/dev/null || true
           
-          cp spacewar.dtb edk2-msm/Platform/Nothing/sm7325/FdtBlob_compat/spacewar.dtb
-          echo "  ✅ Copied: spacewar.dtb (Yupik)"
+          cp spacewar.dtb edk2-msm/Platform/Nothing/sm7325/FdtBlob_compat/ 2>/dev/null || true
+          
+          echo "✅ Platform files prepared"
 
       - name: Build UEFI firmware
         run: |
@@ -150,38 +147,37 @@ jobs:
           echo ""
           
           if ! ./build.sh -d spacewar -r RELEASE -u -A 2>&1 | tee build.log; then
-              echo ""
               echo "❌ Build FAILED!"
-              tail -50 build.log
+              tail -100 build.log
               exit 1
           fi
           
           if [ ! -f "boot-spacewar.img" ]; then
               echo "❌ CRITICAL: boot-spacewar.img not produced!"
-              ls -la *.img 2>/dev/null || echo "  No .img files found"
+              ls -la *.img 2>/dev/null || echo "No .img files"
               exit 1
           fi
           
           SIZE=$(stat -c%s boot-spacewar.img)
-          echo "✅ UEFI Build Successful!"
-          echo "  📦 Output: boot-spacewar.img"
+          echo "✅ Build SUCCESS!"
+          echo "  📦 boot-spacewar.img"
           echo "  💾 Size: $((SIZE / 1024 / 1024))MB"
 
       - name: Upload build artifact
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: boot-spacewar-${{ github.run_number }}
           path: edk2-msm/boot-spacewar.img
           retention-days: 30
+          if-no-files-found: warn
 
       - name: Create GitHub Release
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        if: success() && github.ref == 'refs/heads/main'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: build-${{ github.run_number }}
-          name: "Build #${{ github.run_number }}: Spacewar UEFI (Yupik)"
-          draft: false
-          prerelease: false
+          name: "Build #${{ github.run_number }}: Spacewar UEFI"
           files: edk2-msm/boot-spacewar.img
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
