@@ -1,58 +1,84 @@
-name: Build Spacewar UEFI
+name: Build Spacewar UEFI (Final)
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, master ]
   pull_request:
-    branches: [ main ]
+    branches: [ main, master ]
   workflow_dispatch:
 
 jobs:
   build:
-    name: Build UEFI
     runs-on: ubuntu-latest
+    name: Build UEFI for Nothing Phone (1)
     
     steps:
-      - name: Checkout Repository
+      - name: Checkout Local Repository
         uses: actions/checkout@v4
         with:
-          submodules: recursive
-          fetch-depth: 0
+          path: local-repo
 
-      - name: Install Dependencies
+      - name: Install Build Dependencies
         run: |
-          sudo apt-get update
-          # iasl için acpica-tools eklenmesi Ubuntu ortamında daha güvenlidir
-          sudo apt-get install -y build-essential uuid-dev acpica-tools git nasm \
-          python3 python3-setuptools python3-dev gcc-aarch64-linux-gnu
+          sudo apt update
+          sudo apt install -y build-essential uuid-dev iasl git nasm \
+          python3 python3-setuptools python3-dev gcc-aarch64-linux-gnu \
+          device-tree-compiler bc abootimg
 
-      - name: Compile BaseTools
+      - name: Clone edk2-msm (Core Framework)
         run: |
-          make -C BaseTools
+          git clone --recursive https://github.com/edk2-porting/edk2-msm.git --depth 1 edk2
+
+      - name: Clone SimpleInit (GUI Framework)
+        run: |
+          # spacewar.dsc'nin aradığı arayüz kütüphanesini çekiyoruz
+          git clone https://github.com/BigfootACA/simple-init.git edk2/SimpleInit
+
+      - name: Clone Binary Drivers (edk2-msm-binary)
+        run: |
+          # Sürücüleri (Buttons, MassStorage vb.) çekiyoruz
+          git clone https://github.com/edk2-porting/edk2-msm-binary.git --depth 1 binaries
+
+      - name: Prepare Workspace & Merge Files
+        run: |
+          # 1. Senin repondaki UEFI klasöründeki her şeyi edk2 ana dizinine kopyala
+          cp -r local-repo/UEFI/* edk2/
+          
+          # 2. Binary sürücüleri fdf.inc'in beklediği yapıya oturt
+          mkdir -p edk2/Platform/EFI_Binaries
+          cp -r binaries/* edk2/Platform/EFI_Binaries/
+          
+          # spacewar.fdf.inc özellikle "Devices/spacewar" yolunu aradığı için sm7325 sürücülerini oraya da kopyalıyoruz
+          mkdir -p edk2/Platform/EFI_Binaries/Drivers/Devices/spacewar
+          cp -r binaries/Drivers/sm7325/* edk2/Platform/EFI_Binaries/Drivers/Devices/spacewar/ || true
+
+      - name: Build BaseTools
+        working-directory: edk2
+        run: make -C BaseTools
 
       - name: Build Spacewar UEFI
+        working-directory: edk2
         run: |
-          # Ortam değişkenlerini ayarlıyoruz
+          # Ortam değişkenleri
           export GCC5_AARCH64_PREFIX=aarch64-linux-gnu-
           export WORKSPACE=$PWD
-          export PACKAGES_PATH=$PWD:$PWD/Silicon:$PWD/Platform
+          export PACKAGES_PATH=$PWD:$PWD/SimpleInit
           
-          # EDK2 ortamını aynı terminal oturumunda (shell) yüklüyoruz
+          # EDK2 Kurulumu
           source edksetup.sh
           
-          # Derleme işlemini başlatıyoruz
+          # Derleme Komutu
           build -a AARCH64 \
                 -p Platform/Nothing/sm7325/spacewar.dsc \
                 -t GCC5 \
                 -b RELEASE \
                 -D FIRMWARE_VER=0.1
-                
-      - name: Upload Artifacts
+
+      - name: Upload Build Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: Spacewar-UEFI-Release
-          # Çıktı klasöründeki .fd ve .img imajlarını alır
+          name: Nothing-Phone1-UEFI-Image
           path: |
-            Build/spacewar/RELEASE_GCC5/FV/*.fd
-            Build/spacewar/RELEASE_GCC5/FV/*.img
-          if-no-files-found: warn
+            edk2/Build/spacewar/RELEASE_GCC5/FV/*.fd
+            edk2/Build/spacewar/RELEASE_GCC5/FV/*.img
+          if-no-files-found: error
