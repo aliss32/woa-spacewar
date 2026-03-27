@@ -40,4 +40,4 @@
 
 [Components.common]
   # SimpleInit Boot Menu
-  GPLDrivers/Library/SimpleInit/src/main/SimpleInitMain.inf
+  src/main/SimpleInitMain.inf
