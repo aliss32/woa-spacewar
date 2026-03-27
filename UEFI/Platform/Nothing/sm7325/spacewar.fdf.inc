@@ -1,5 +1,4 @@
 // per-device BSP DXEs - Nothing Phone (1) spacewar
-  INF Platform/EFI_Binaries/Drivers/Devices/spacewar/ButtonsDxe/ButtonsDxe.depex
 
   FILE DRIVER = 5BD181DB-0487-4F1A-AE3B-D0A136E7CD5F {
     SECTION DXE_DEPEX = Platform/EFI_Binaries/Drivers/Devices/spacewar/ButtonsDxe/ButtonsDxe.depex
