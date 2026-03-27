@@ -1,183 +1,55 @@
 name: Build WOA-Spacewar UEFI
 
 on:
-  workflow_dispatch:
   push:
-    branches:
-      - main
-    paths:
-      - 'UEFI/**'
-      - 'DTB/**'
-      - '.github/workflows/build.yml'
-
-env:
-  USE_IASL: "true"
-  BUILD_THREADS: 4
-  RELEASE_TYPE: RELEASE
+    branches: [ main ]
+  workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 1
 
-      - name: Setup build environment
+      - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y \
-            build-essential uuid-dev iasl git nasm \
-            python3 python3-pil python3-git python3-cryptography \
-            gcc-aarch64-linux-gnu clang llvm lld \
-            mono-devel acpica-tools gettext \
-            libsdl2-2.0-0 libsdl2-dev abootimg \
-            device-tree-compiler wget curl
+          sudo apt-get install -y build-essential uuid-dev iasl git gcc-aarch64-linux-gnu bc device-tree-compiler python3 python3-pip
 
       - name: Clone edk2-msm
         run: |
-          echo "📦 Cloning edk2-msm..."
-          git clone https://github.com/edk2-porting/edk2-msm.git \
-            --recursive --depth=1 edk2-msm
-          echo "✅ Clone complete"
+          # Temel UEFI reposunu indir
+          git clone https://github.com/WOA-Project/edk2-msm.git --depth 1
+          cd edk2-msm
+          git submodule update --init --recursive
 
-      - name: Patch EDK2 BaseTools
+      - name: Setup Device & Inject Memory Map
         run: |
-          echo "🔧 Patching EDK2 Python regex patterns..."
-          find edk2-msm/Common/edk2/BaseTools -name "*.py" -exec sed -i \
-            -e "s/re\.compile('/re.compile(r'/g" \
-            -e "s/re\.search('/re.search(r'/g" \
-            -e "s/re\.sub('/re.sub(r'/g" \
-            {} +
-          sed -i "s/'\[1-9]\\\\d\*|0\$'/r'[1-9]\\\\d*|0$'/g" \
-            edk2-msm/Common/edk2/BaseTools/Source/Python/Workspace/DscBuildData.py || true
-          echo "✅ Patching complete"
+          # 1. Senin Spacewar klasörlerini ana çalışma alanına kopyala
+          cp -r UEFI/configs/devices/spacewar.conf edk2-msm/configs/devices/
+          cp -r UEFI/Platform/Nothing edk2-msm/Platform/
 
-      - name: Prepare and validate DTB
-        run: |
-          echo "🌳 Preparing Device Tree Blob..."
-          
-          if [ -f "DTB/spacewar-yupik.dtb" ]; then
-            cp DTB/spacewar-yupik.dtb spacewar.dtb
-            echo "✅ Using: DTB/spacewar-yupik.dtb"
-          else
-            echo "❌ ERROR: DTB/spacewar-yupik.dtb not found!"
-            exit 1
-          fi
-          
-          python3 << 'DTBEOF'
-          import struct, sys
-          with open('spacewar.dtb', 'rb') as f:
-              dtb = f.read()
-          magic = struct.unpack_from('>I', dtb, 0)[0]
-          size = struct.unpack_from('>I', dtb, 4)[0]
-          if magic != 0xD00DFEED:
-              print(f'❌ Invalid DTB magic: 0x{magic:08X}')
-              sys.exit(1)
-          print(f'✅ DTB Valid: {size} bytes ({size/1024:.1f} KB)')
-          DTBEOF
+          # 2. THE HIJACK (Kurşun Geçirmez Yama)
+          # Senin C dosyanı, orijinal Qualcomm dosyasının üzerine zorla yazıyoruz (-f).
+          # Bu sayede EDK2, senin GIC ve UART adreslerini hatasız derler.
+          cp -f UEFI/Platform/Nothing/sm7325/Library/PlatformMemoryMapLib/PlatformMemoryMapLib.c edk2-msm/Silicon/Qualcomm/sm7325/Library/PlatformMemoryMapLib/PlatformMemoryMapLib.c
 
-      - name: Compile ACPI tables (ASL → AML)
-        run: |
-          echo "🔨 Compiling ASL source files to AML..."
-          
-          mkdir -p build_acpi
-          cd build_acpi
-          
-          for asl_file in ../UEFI/Platform/Nothing/sm7325/AcpiTables/spacewar/*.asl; do
-              if [ -f "$asl_file" ]; then
-                  basename=$(basename "$asl_file")
-                  aml_name="${basename%.asl}.aml"
-                  
-                  echo "  ⚙️  Compiling: $basename"
-                  
-                  if ! iasl -f "$asl_file" 2>&1 | tee compile.log; then
-                      echo "  ❌ IASL ERROR in $basename"
-                      cat compile.log
-                      exit 1
-                  fi
-                  
-                  if [ -f "$aml_name" ]; then
-                      echo "  ✅ Generated: $aml_name"
-                  fi
-              fi
-          done
-          
-          find . -name "*.aml" -exec cp {} ../UEFI/Platform/Nothing/sm7325/AcpiTables/spacewar/ \; 2>/dev/null || true
-          cd ..
-          
-          echo "✅ ACPI compilation complete"
-          COMPILED=$(ls UEFI/Platform/Nothing/sm7325/AcpiTables/spacewar/*.aml 2>/dev/null | wc -l)
-          echo "📊 Compiled ACPI tables: $COMPILED"
+          # 3. DSC İçindeki Yönlendirmeyi Temizle
+          # DSC dosyan senin özel kütüphanene bakmaya çalışmasın, orijinali (bizim yamaladığımızı) kullansın diye o satırı siliyoruz.
+          sed -i '/PlatformMemoryMapLib|/d' edk2-msm/Platform/Nothing/sm7325/spacewar.dsc
 
-      - name: Prepare Spacewar platform files
-        run: |
-          echo "📂 Setting up Spacewar platform in edk2-msm..."
-          
-          mkdir -p edk2-msm/configs/devices
-          if [ -f "UEFI/configs/devices/spacewar.conf" ]; then
-            cp UEFI/configs/devices/spacewar.conf edk2-msm/configs/devices/
-            echo "  ✅ Copied: spacewar.conf"
-          fi
-          
-          mkdir -p edk2-msm/Platform/Nothing/sm7325/{AcpiTables/spacewar,FdtBlob,FdtBlob_compat,Library/PlatformMemoryMapLib}
-          
-          cp UEFI/Platform/Nothing/sm7325/spacewar.dsc edk2-msm/Platform/Nothing/sm7325/ 2>/dev/null || true
-          cp UEFI/Platform/Nothing/sm7325/spacewar.fdf.inc edk2-msm/Platform/Nothing/sm7325/ 2>/dev/null || true
-          
-          cp -r UEFI/Platform/Nothing/sm7325/AcpiTables/spacewar/* \
-             edk2-msm/Platform/Nothing/sm7325/AcpiTables/spacewar/ 2>/dev/null || true
-          
-          cp spacewar.dtb edk2-msm/Platform/Nothing/sm7325/FdtBlob_compat/ 2>/dev/null || true
-          
-          echo "✅ Platform files prepared"
-
-      - name: Build UEFI firmware
+      - name: Build UEFI
         run: |
           cd edk2-msm
-          
-          echo "🔨 Starting UEFI build..."
-          echo "  Platform: spacewar (Nothing Phone 1)"
-          echo "  SoC: SM7325-AE (Yupik)"
-          echo "  Profile: RELEASE"
-          echo ""
-          
-          if ! ./build.sh -d spacewar -r RELEASE -u -A 2>&1 | tee build.log; then
-              echo "❌ Build FAILED!"
-              tail -100 build.log
-              exit 1
-          fi
-          
-          if [ ! -f "boot-spacewar.img" ]; then
-              echo "❌ CRITICAL: boot-spacewar.img not produced!"
-              ls -la *.img 2>/dev/null || echo "No .img files"
-              exit 1
-          fi
-          
-          SIZE=$(stat -c%s boot-spacewar.img)
-          echo "✅ Build SUCCESS!"
-          echo "  📦 boot-spacewar.img"
-          echo "  💾 Size: $((SIZE / 1024 / 1024))MB"
+          export CROSS_COMPILE=aarch64-linux-gnu-
+          # Build işlemini başlat
+          ./build.sh --device spacewar
 
-      - name: Upload build artifact
-        if: always()
+      - name: Upload Build Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: boot-spacewar-${{ github.run_number }}
-          path: edk2-msm/boot-spacewar.img
-          retention-days: 30
-          if-no-files-found: warn
-
-      - name: Create GitHub Release
-        if: success() && github.ref == 'refs/heads/main'
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: build-${{ github.run_number }}
-          name: "Build #${{ github.run_number }}: Spacewar UEFI"
-          files: edk2-msm/boot-spacewar.img
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          name: UEFI-Spacewar
+          # Çıkan .fd (veya .img) dosyasını GitHub Actions'a yükle
+          path: edk2-msm/workspace/Build/spacewar/DEBUG_GCC5/FV/SM7325_EFI.fd
