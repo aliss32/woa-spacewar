@@ -11,6 +11,15 @@
   FLASH_DEFINITION               = Platform/Qualcomm/sm7325/sm7325.fdf
   DEVICE_DXE_FV_COMPONENTS       = Platform/Nothing/sm7325/spacewar.fdf.inc
 
+  # ==========================================================================
+  # Flash Device (UEFI) Bellek Tanımlamaları
+  # Bu değerler sm7325.fdf içindeki $(FD_BASE) vb. hataları çözer.
+  # ==========================================================================
+  FD_BASE                        = 0x80200000
+  FD_SIZE                        = 0x00300000
+  FD_BLOCK_SIZE                  = 0x00001000
+  FD_BLOCK_NUM                   = 0x300
+
 !include Platform/Qualcomm/sm7325/sm7325.dsc
 
 [BuildOptions.common]
@@ -18,18 +27,12 @@
 
 [PcdsFixedAtBuild.common]
   # Display - 1080x2400 @ 60Hz (DSC Enabled) [Experimental]
-  # PcdMipiFrameBufferAddress|0xE1000000 already defined in sm7325.dsc - do not redefine here
+  # PcdMipiFrameBufferAddress|0xE1000000 zaten sm7325.dsc içinde tanımlı olabilir
   gQcomTokenSpaceGuid.PcdMipiFrameBufferWidth|1080
   gQcomTokenSpaceGuid.PcdMipiFrameBufferHeight|2400
-  gSimpleInitTokenSpaceGuid.PcdGuiDefaultDPI|420
+  gSimpleInitTokenSpaceGuid.PcdGuiDefaultDPI|440
+
+  # Cihaz Bilgileri
   gRenegadePkgTokenSpaceGuid.PcdDeviceVendor|"Nothing"
   gRenegadePkgTokenSpaceGuid.PcdDeviceProduct|"Phone (1)"
   gRenegadePkgTokenSpaceGuid.PcdDeviceCodeName|"spacewar"
-  
-  # GIC and UART Fix
-  gArmTokenSpaceGuid.PcdGicDistributorBase|0x17A00000
-  gArmTokenSpaceGuid.PcdGicRedistributorsBase|0x17A60000
-  gEfiMdeModulePkgTokenSpaceGuid.PcdSerialRegisterBase|0x00994000
-
-[LibraryClasses.common]
-  PlatformMemoryMapLib|Platform/Nothing/sm7325/Library/PlatformMemoryMapLib/PlatformMemoryMapLib.inf
