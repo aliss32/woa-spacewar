@@ -34,19 +34,17 @@ jobs:
           git clone https://github.com/edk2-porting/edk2-msm.git \
             --recursive --depth=1 edk2-msm
 
-      - name: Clone SimpleInitPkg
+      - name: Clone SimpleInit & Generate RootFS (Upstream)
         run: |
-          git clone https://github.com/woa-msm/SimpleInitPkg.git \
-            --depth=1 SimpleInitPkg
-
-      - name: Clone SimpleInit & Generate RootFS
-        run: |
-          git clone https://github.com/woa-msm/SimpleInit.git \
-            --depth=1 SimpleInit
+          git clone https://github.com/BigfootACA/simple-init.git \
+            --recursive --depth=1 SimpleInit
           cd SimpleInit
-          # Generate rootfs.c from the integrated rootfs
-          bash ./make_rootfs.sh
-          # Verify rootfs.c exists
+          mkdir -p build
+          # Generate rootfs using upstream script
+          bash ./scripts/gen-rootfs-source.sh . build
+          # Ensure generated filename matches build expectations (fallback mv)
+          mv build/assets_rootfs.c build/rootfs.c || true
+          # Verify rootfs.c exists for UEFI build
           ls -la build/rootfs.c || (echo "rootfs.c generation FAILED"; exit 1)
 
       - name: Patch EDK2 BaseTools (Fix Python Syntax Warnings)
@@ -140,7 +138,7 @@ jobs:
           export GCC5_AARCH64_PREFIX=aarch64-linux-gnu-
           
           # Set PACKAGES_PATH to include all required components
-          export PACKAGES_PATH=$GITHUB_WORKSPACE/edk2-msm:$GITHUB_WORKSPACE/edk2-msm/Common/edk2:$GITHUB_WORKSPACE/SimpleInitPkg:$GITHUB_WORKSPACE/SimpleInit
+          export PACKAGES_PATH=$GITHUB_WORKSPACE/edk2-msm:$GITHUB_WORKSPACE/edk2-msm/Common/edk2:$GITHUB_WORKSPACE/SimpleInit
           
           echo "PACKAGES_PATH: $PACKAGES_PATH"
           
