@@ -9,19 +9,19 @@
   SUPPORTED_ARCHITECTURES        = AARCH64
   BUILD_TARGETS                  = DEBUG|RELEASE
   SKUID_IDENTIFIER               = DEFAULT
-  FLASH_DEFINITION               = Platform/Qualcomm/SM7325/SM7325.fdf
+  FLASH_DEFINITION               = Platform/Qualcomm/sm7325/sm7325.fdf
   DEVICE_DXE_FV_COMPONENTS       = Platform/Nothing/sm7325/spacewar.fdf.inc
 
   # ==========================================================================
   # Flash Device (UEFI) Bellek Tanımlamaları
-  # Bu değerler SM7325.fdf içindeki $(FD_BASE) vb. hataları çözer.
+  # Bu değerler sm7325.fdf içindeki $(FD_BASE) vb. hataları çözer.
   # ==========================================================================
   FD_BASE                        = 0x80200000
   FD_SIZE                        = 0x00300000
   FD_BLOCK_SIZE                  = 0x00001000
   FD_BLOCK_NUM                   = 0x300
 
-!include Platform/Qualcomm/SM7325/SM7325.dsc
+!include Platform/Qualcomm/sm7325/sm7325.dsc
 
 [BuildOptions.common]
   GCC:*_*_AARCH64_CC_FLAGS = -DENABLE_SIMPLE_INIT -DENABLE_LINUX_SIMPLE_MASS_STORAGE
