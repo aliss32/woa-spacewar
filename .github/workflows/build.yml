@@ -34,11 +34,6 @@ jobs:
           git clone https://github.com/edk2-porting/edk2-msm.git \
             --recursive --depth=1 edk2-msm
 
-      - name: Clone SimpleInitPkg
-        run: |
-          git clone https://github.com/woa-msm/SimpleInitPkg.git \
-            --depth=1 SimpleInitPkg
-
       - name: Clone SimpleInit & Generate RootFS
         run: |
           git clone https://github.com/woa-msm/SimpleInit.git \
@@ -140,7 +135,7 @@ jobs:
           export GCC5_AARCH64_PREFIX=aarch64-linux-gnu-
           
           # Set PACKAGES_PATH to include all required components
-          export PACKAGES_PATH=$GITHUB_WORKSPACE/edk2-msm:$GITHUB_WORKSPACE/edk2-msm/Common/edk2:$GITHUB_WORKSPACE/SimpleInitPkg:$GITHUB_WORKSPACE/SimpleInit
+          export PACKAGES_PATH=$GITHUB_WORKSPACE/edk2-msm:$GITHUB_WORKSPACE/edk2-msm/Common/edk2:$GITHUB_WORKSPACE/SimpleInit
           
           echo "PACKAGES_PATH: $PACKAGES_PATH"
           
