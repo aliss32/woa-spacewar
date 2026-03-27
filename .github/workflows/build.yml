@@ -37,11 +37,12 @@ jobs:
       - name: Patch EDK2 BaseTools (Fix Python Syntax Warnings)
         run: |
           echo "Patching invalid escape sequences in edk2-msm/Common/edk2/BaseTools..."
-          find edk2-msm/Common/edk2/BaseTools -name "*.py" -exec sed -i "s/ = '/ = r'/g" {} +
-          find edk2-msm/Common/edk2/BaseTools -name "*.py" -exec sed -i "s/('.*\\\\.')/r\1/g" {} +
-          # Target specific files from logs if generic grep is too aggressive
-          sed -i "s/'\[1-9]\\\\d\*|0\$'/r'[1-9]\\\\d*|0$'/g" edk2-msm/Common/edk2/BaseTools/Source/Python/Workspace/DscBuildData.py
-          sed -i "s/',\[\\\\s]\*'/r',[\s]*'/g" edk2-msm/Common/edk2/BaseTools/Source/Python/Workspace/Workspace/MetaFileParser.py || true
+          # Target common re module pattern to use raw strings
+          find edk2-msm/Common/edk2/BaseTools -name "*.py" -exec sed -i "s/re.compile('/re.compile(r'/g" {} +
+          find edk2-msm/Common/edk2/BaseTools -name "*.py" -exec sed -i "s/re.search('/re.search(r'/g" {} +
+          find edk2-msm/Common/edk2/BaseTools -name "*.py" -exec sed -i "s/re.sub('/re.sub(r'/g" {} +
+          # Fix common specific patterns
+          sed -i "s/'\[1-9]\\\\d\*|0\$'/r'[1-9]\\\\d*|0$'/g" edk2-msm/Common/edk2/BaseTools/Source/Python/Workspace/DscBuildData.py || true
 
       - name: Prepare Yupik DTB
         run: |
