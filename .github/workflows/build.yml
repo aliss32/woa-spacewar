@@ -139,11 +139,19 @@ jobs:
       - name: Manual ACPI and Case-Sensitivity Preparation
         run: |
           echo "=== Step 1: Manual ACPI Generation ==="
-          # Generate DSDT.aml manually to prevent 'file not found' error in build.py
-          iasl -ve UEFI/Platform/Nothing/sm7325/AcpiTables/spacewar/Dsdt.asl || (echo "iasl FAILED"; exit 1)
-          mkdir -p edk2-msm/Platform/Nothing/sm7325/AcpiTables/spacewar
-          # Note: iasl often produces Uppercase .AML or lowercase .aml, we rename to match FDF
-          cp -f Dsdt.aml edk2-msm/Platform/Nothing/sm7325/AcpiTables/spacewar/DSDT.aml || cp -f DSDT.aml edk2-msm/Platform/Nothing/sm7325/AcpiTables/spacewar/DSDT.aml || true
+          # iasl -I specifies the include path for Cpu.asl, -p specifies the output file path/name
+          ASL_DIR="UEFI/Platform/Nothing/sm7325/AcpiTables/spacewar"
+          TARGET_DIR="edk2-msm/Platform/Nothing/sm7325/AcpiTables/spacewar"
+          mkdir -p "$TARGET_DIR"
+          
+          iasl -ve -I"$ASL_DIR" -p "$TARGET_DIR/DSDT.aml" "$ASL_DIR/Dsdt.asl"
+          
+          # Verify DSDT.aml was actually created
+          if [ ! -f "$TARGET_DIR/DSDT.aml" ]; then
+            echo "ERROR: DSDT.aml was not created!"
+            exit 1
+          fi
+          echo "DSDT.aml successfully created at $TARGET_DIR"
 
       - name: Build UEFI
         run: |
