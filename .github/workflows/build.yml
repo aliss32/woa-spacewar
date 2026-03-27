@@ -170,24 +170,32 @@ jobs:
           # Regardless of whether EDK2 produced SM7325_UEFI.fd or sm7325_UEFI.fd,
           # we ensure BOTH exist so Step 4 (Packaging) never fails.
           FV_DIR="workspace/Build/spacewar/RELEASE_CLANG38/FV"
-          FOUND_FD=$(find workspace/Build -name "*.fd" | head -n 1)
-          
           if [ ! -z "$FOUND_FD" ]; then
             echo "Found FD file at: $FOUND_FD"
-            # Create both versions to satisfy any script dependency
-            cp -f "$FOUND_FD" "$FV_DIR/sm7325_UEFI.fd"
-            cp -f "$FOUND_FD" "$FV_DIR/SM7325_UEFI.fd"
-            echo "Synchronized FD files (Lower & Upper case) in $FV_DIR"
+            # Ensure both sm7325_UEFI.fd and SM7325_UEFI.fd exist without self-copying errors
+            [[ "$FOUND_FD" != "$FV_DIR/sm7325_UEFI.fd" ]] && cp -f "$FOUND_FD" "$FV_DIR/sm7325_UEFI.fd" || echo "sm7325_UEFI.fd already exists or is the source."
+            [[ "$FOUND_FD" != "$FV_DIR/SM7325_UEFI.fd" ]] && cp -f "$FOUND_FD" "$FV_DIR/SM7325_UEFI.fd" || echo "SM7325_UEFI.fd already exists or is the source."
+            echo "Naming synchronization complete in $FV_DIR"
           else
-            echo "ERROR: No .fd file was generated!"
+            echo "ERROR: No .fd file was generated in workspace/Build!"
             exit 1
           fi
 
           echo "=== Step 4: Packaging (Output Generation) ==="
+          # Use local environment variables to guide the build script if possible
+          export SOC_PLATFORM=sm7325
           ./build.sh -d spacewar -r RELEASE -A
 
           echo "=== Build Result Verification ==="
-          ls -la boot-spacewar.img 2>/dev/null || (echo "boot-spacewar.img MISSING"; exit 1)
+          if [ -f "boot-spacewar.img" ]; then
+            ls -la boot-spacewar.img
+          elif [ -f "edk2-msm/boot-spacewar.img" ]; then
+            ls -la edk2-msm/boot-spacewar.img
+          else
+            echo "boot-spacewar.img MISSING in all known locations!"
+            find . -name "boot-spacewar.img"
+            exit 1
+          fi
 
       - name: Verify build
         run: |
