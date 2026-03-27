@@ -70,16 +70,11 @@ jobs:
 
       - name: Build Spacewar UEFI
         run: |
-          # 1. TianoCore içine girip ortamı kuruyoruz
           cd edk2/Common/edk2
           . ./edksetup.sh
+          # Tüm olası ana dizinleri PACKAGES_PATH'e ekliyoruz
+          export PACKAGES_PATH=$GITHUB_WORKSPACE/edk2:$GITHUB_WORKSPACE/edk2/Common/edk2:$GITHUB_WORKSPACE/edk2/Platform/Qualcomm
           
-          # 2. Çalışma alanını genişletiyoruz (Hayati adım)
-          # Bu değişken derleyiciye "Eğer bir dosyayı Common/edk2'de bulamazsan, üst klasörlere bak" der.
-          export PACKAGES_PATH=$GITHUB_WORKSPACE/edk2:$GITHUB_WORKSPACE/edk2/Common/edk2
-          
-          # 3. Derlemeyi başlatıyoruz
-          # --platform (-p) yolunu tam (absolute) vererek karışıklığı önlüyoruz
           build -a AARCH64 \
                 -p $GITHUB_WORKSPACE/edk2/Platform/Nothing/sm7325/spacewar.dsc \
                 -t GCC5 \
