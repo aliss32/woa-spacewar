@@ -153,60 +153,88 @@ jobs:
           fi
           echo "DSDT.aml successfully created at $TARGET_DIR"
 
-      - name: Build UEFI (Final Resilience Fix)
+      - name: Build UEFI (Native Compilation & Packaging)
         run: |
-          # Define Cross-Compiler Prefix
+          # 1. Setup EDK2 Environment
           export GCC5_AARCH64_PREFIX=aarch64-linux-gnu-
-          
-          # Set PACKAGES_PATH
-          export PACKAGES_PATH=$GITHUB_WORKSPACE/edk2-msm:$GITHUB_WORKSPACE/edk2-msm/Common/edk2
+          export PACKAGES_PATH=$GITHUB_WORKSPACE/edk2-msm:$GITHUB_WORKSPACE/edk2-msm/Common/edk2:$GITHUB_WORKSPACE/edk2-msm/Common/edk2-platforms:$GITHUB_WORKSPACE/edk2-msm/GPLDrivers/Library/SimpleInit
+          export EDK_TOOLS_PATH=$GITHUB_WORKSPACE/edk2-msm/Common/edk2/BaseTools
           
           cd edk2-msm
           
-          echo "=== Step 1.1: Nuclear Workspace Wipe (Anti-Link Cycle) ==="
-          # Completely delete workspace to prevent any circular symlink loops (Errno 40)
+          echo "=== Step 1: Nuclear Cleanup ==="
           rm -rf workspace
           mkdir -p workspace
           
-          echo "=== Step 1.5: Patching Submodule FDF (Casing Fix) ==="
-          # Standardize SoC platform paths to lowercase
-          find Platform/Qualcomm/sm7325 -name "*.fdf" -exec sed -i "s/SM7325_UEFI/sm7325_UEFI/g" {} + 2>/dev/null || true
-
-          echo "=== Step 2: Compilation (UEFI Only) ==="
-          ./build.sh -d spacewar -r RELEASE -u || echo "Compilation finished (check for post-proc errors)"
-
-          echo "=== Step 3: Dynamic FD Discovery (Case-Insensitive) ==="
-          # Find any .fd file produced by EDK2, regardless of Uppercase/lowercase casing
+          echo "=== Step 2: Compile BaseTools ==="
+          make -C Common/edk2/BaseTools -j$(nproc)
+          
+          echo "=== Step 3: Native Build Call ==="
+          # Source EDK2 environment
+          set +e
+          source Common/edk2/edksetup.sh
+          set -e
+          
+          # Run native build command
+          build -s -n 0 -a AARCH64 -t CLANG38 \
+            -p Platform/Nothing/sm7325/spacewar.dsc \
+            -b RELEASE \
+            -D FIRMWARE_VER=$(git rev-parse --short HEAD) \
+            -D USE_UART=0 \
+            -D FD_BASE=0xCE000000 \
+            -D FD_SIZE=0x02000000 \
+            -D ENABLE_LINUX_UTILS=1
+            
+          echo "=== Step 4: Firmware Discovery ==="
+          # Find the generated FD file (handling case-insensitivity)
           FOUND_FD=$(find workspace/Build/spacewar -name "*.fd" | grep -v "FVMAIN" | head -n 1)
-          
           if [ -z "$FOUND_FD" ]; then
-            echo "CRITICAL ERROR: EDK2 did NOT generate any .fd file!"
+            echo "CRITICAL ERROR: EDK2 did NOT generate a firmware file!"
             exit 1
           fi
           
-          # VALIDATION: Check file size (must be > 1MB)
           FD_SIZE=$(stat -c%s "$FOUND_FD")
-          echo "Found FD at $FOUND_FD (Size: $FD_SIZE bytes)"
-          if [ "$FD_SIZE" -lt 1000000 ]; then
-            echo "ERROR: Generated .fd file is too small ($FD_SIZE bytes). Build failed!"
-            exit 1
+          echo "Found firmware: $FOUND_FD (Size: $FD_SIZE bytes)"
+          if [ "$FD_SIZE" -lt 5000000 ]; then
+             echo "ERROR: Firmware size is too small ($FD_SIZE). Likely build overflow or failure."
+             exit 1
           fi
-          
-          # Standardize name for the packaging script
-          FV_DIR=$(dirname "$FOUND_FD")
-          cp -f "$FOUND_FD" "$FV_DIR/sm7325_UEFI.fd"
-          cp -f "$FOUND_FD" "$FV_DIR/SM7325_UEFI.fd"
-          
-          echo "=== Step 4: Final Packaging (boot.img generation) ==="
-          export SOC_PLATFORM=sm7325
-          ./build.sh -d spacewar -r RELEASE -A
 
-          echo "=== Verification & Cleanup ==="
-          if [ -f "boot-spacewar.img" ] || [ -f "edk2-msm/boot-spacewar.img" ]; then
-             echo "SUCCESS: boot-spacewar.img generated."
+          echo "=== Step 5: Build BootShim ==="
+          cd tools/BootShim
+          make UEFI_BASE=0xCE000000 UEFI_SIZE=0x02000000
+          cd ../..
+
+          echo "=== Step 6: Native Assembly ==="
+          # Create kernel payload: BootShim + UEFI.fd
+          cat tools/BootShim/BootShim.bin "$FOUND_FD" > workspace/uefi-kernel
+          # Gzip it
+          gzip -c workspace/uefi-kernel > workspace/uefi-kernel.gz
+          # Append DTB (Yupik compatible)
+          cat workspace/uefi-kernel.gz Platform/Nothing/sm7325/FdtBlob_compat/spacewar.dtb > workspace/uefi-kernel-dtb
+
+          echo "=== Step 7: Packaging boot.img ==="
+          # Ensure dummy ramdisk exists
+          touch workspace/ramdisk
+          
+          python3 tools/mkbootimg.py \
+            --kernel workspace/uefi-kernel-dtb \
+            --ramdisk workspace/ramdisk \
+            --kernel_offset 0x00000000 \
+            --ramdisk_offset 0x00000000 \
+            --tags_offset 0x00000000 \
+            --os_version 14.0.0 \
+            --os_patch_level 2024-05 \
+            --header_version 4 \
+            -o boot-spacewar.img
+
+          echo "=== Final Verification ==="
+          if [ -f "boot-spacewar.img" ]; then
+             echo "SUCCESS: boot-spacewar.img created internally."
+             # Display size
+             ls -lh boot-spacewar.img
           else
-             echo "Final image MISSING!"
-             find . -name "boot-spacewar.img"
+             echo "ERROR: Final image generation failed!"
              exit 1
           fi
 
