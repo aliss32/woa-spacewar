@@ -1,0 +1,28 @@
+[Defines]
+  INF_VERSION                    = 0x0001001A
+  BASE_NAME                      = ArmGicDxe
+  FILE_GUID                      = 6B38F7B4-6ED7-4E38-8BA8-6ED09C03C7F7
+  MODULE_TYPE                    = DXE_DRIVER
+  ENTRY_POINT                    = IntcInterruptDxeInitialize
+
+[Packages]
+  MdePkg/MdePkg.dec
+  ArmPkg/ArmPkg.dec
+  ArmPlatformPkg/ArmPlatformPkg.dec
+
+[LibraryClasses]
+  UefiLib
+  UefiDriverEntryPoint
+  DebugLib
+  IoLib
+  TimerLib
+  ArmGenericTimerCounterLib
+
+[FixedPcd]
+  gArmTokenSpaceGuid.PcdGicDistributorBase
+  gArmTokenSpaceGuid.PcdGicRedistributorBase
+  gArmTokenSpaceGuid.PcdGicInterruptInterfaceBase
+  gArmTokenSpaceGuid.PcdArmArchTimerFreqInHz
+
+[Depex]
+  TRUE
