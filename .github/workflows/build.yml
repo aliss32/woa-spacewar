@@ -153,7 +153,7 @@ jobs:
           fi
           echo "DSDT.aml successfully created at $TARGET_DIR"
 
-      - name: Build UEFI
+      - name: Build UEFI with Case-Sensitivity Hack
         run: |
           # Define Cross-Compiler Prefix
           export GCC5_AARCH64_PREFIX=aarch64-linux-gnu-
@@ -162,28 +162,16 @@ jobs:
           export PACKAGES_PATH=$GITHUB_WORKSPACE/edk2-msm:$GITHUB_WORKSPACE/edk2-msm/Common/edk2
           
           cd edk2-msm
-          echo "=== Step 2: Compilation (UEFI Only) ==="
-          ./build.sh -d spacewar -r RELEASE -u
-
-          echo "=== Step 3: Fixing Case Sensitivity for Packaging (Aggressive) ==="
-          # The packaging hook expects sm7325_UEFI.fd (lowercase)
-          # We search for ANY .fd file produced and copy it to the expected name
-          # This handles both SM7325_UEFI.fd and spacewar_UEFI.fd variations.
-          TARGET_FD="workspace/Build/spacewar/RELEASE_CLANG38/FV/sm7325_UEFI.fd"
-          FOUND_FD=$(find workspace/Build -name "*.fd" | head -n 1)
           
-          if [ ! -z "$FOUND_FD" ]; then
-            echo "Found FD file at: $FOUND_FD"
-            cp -f "$FOUND_FD" "$TARGET_FD"
-            echo "Copied: $FOUND_FD -> $TARGET_FD"
-          else
-            echo "ERROR: No .fd file was generated in workspace/Build!"
-            find workspace/Build -maxdepth 5
-            exit 1
-          fi
-
-          echo "=== Step 4: Packaging (Output Generation) ==="
-          ./build.sh -d spacewar -r RELEASE -A
+          # Create symlinks to fix casing issues in edk2-msm scripts
+          mkdir -p Silicon/Qualcomm Platform/Qualcomm
+          # Force symlinks even if directories exist
+          ln -sf sm7325 Silicon/Qualcomm/SM7325
+          ln -sf sm7325 Platform/Qualcomm/SM7325
+          
+          echo "=== Starting Full Build (Compiling + Packaging) ==="
+          # With SOC_PLATFORM="SM7325" in spacewar.conf, packaging will now find SM7325_UEFI.fd
+          ./build.sh -d spacewar -r RELEASE -u -A
 
           echo "=== Build Result Verification ==="
           ls -la boot-spacewar.img 2>/dev/null || (echo "boot-spacewar.img MISSING"; exit 1)
