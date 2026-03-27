@@ -124,8 +124,8 @@ DefinitionBlock ("DSDT.aml", "DSDT", 2, "MSFT", "SPACEWAR", 1)
     Name (_UID, 0)
     Method (_CRS, 0, NotSerialized) {
       Name (RBUF, ResourceTemplate () {
-        GpioInt (Edge, ActiveBoth, ExclusiveAndWake, PullUp, 0, "\\_SB.GIO0", 0, ResourceConsumer, , ) { 87 }
-        GpioInt (Edge, ActiveBoth, ExclusiveAndWake, PullUp, 0, "\\_SB.GIO0", 0, ResourceConsumer, , ) { 6 }
+        GpioInt (Edge, ActiveBoth, ExclusiveAndWake, PullUp, 0, "\\_SB.GIO0", 0, ResourceConsumer, , ) { 87 } // Power
+        GpioInt (Edge, ActiveBoth, ExclusiveAndWake, PullUp, 0, "\\_SB.PMI2", 0, ResourceConsumer, , ) { 6 }  // Volume Up
       })
       Return (RBUF)
     }

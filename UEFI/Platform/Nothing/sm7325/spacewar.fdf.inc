@@ -1,9 +1,11 @@
 // per-device BSP DXEs - Nothing Phone (1) spacewar
-# FILE DRIVER = 5bd181db-0487-4f1a-ae73-820e165611b3 {
-#   SECTION DXE_DEPEX = Platform/EFI_Binaries/Drivers/Devices/spacewar/ButtonsDxe/ButtonsDxe.depex
-#   SECTION PE32 = Platform/EFI_Binaries/Drivers/Devices/spacewar/ButtonsDxe/ButtonsDxe.efi
-#   SECTION UI = "ButtonsDxe"
-# }
+  INF Platform/EFI_Binaries/Drivers/Devices/spacewar/ButtonsDxe/ButtonsDxe.depex
+
+  FILE DRIVER = 5BD181DB-0487-4F1A-AE3B-D0A136E7CD5F {
+    SECTION DXE_DEPEX = Platform/EFI_Binaries/Drivers/Devices/spacewar/ButtonsDxe/ButtonsDxe.depex
+    SECTION PE32 = Platform/EFI_Binaries/Drivers/Devices/spacewar/ButtonsDxe/ButtonsDxe.efi
+    SECTION UI = "ButtonsDxe"
+  }
 
 // ACPI Tables
 FILE FREEFORM = 7E374E25-8E01-4FEE-87F2-390C23C606CD {
