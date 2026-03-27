@@ -45,7 +45,7 @@ jobs:
           
           # DSDT.asl dosyasını derleyerek DSDT.aml oluştur
           # cpu.asl, DSDT.asl içinde include edildiyse otomatik dahil edilir
-          iasl -p DSDT.aml DSDT.asl
+          iasl -p DSDT.aml Dsdt.asl
           
           # Derlenen dosyayı derleyicinin arayacağı klasöre kopyala
           mkdir -p ../../../../../../edk2_base/Platform/Nothing/sm7325/AcpiTables/spacewar/
