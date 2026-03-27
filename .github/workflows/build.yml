@@ -136,26 +136,39 @@ jobs:
           echo "=== Copied files list ==="
           find edk2-msm/Platform/Nothing -type f | sort
 
-      - name: Patch edk2-msm scripts for case-sensitivity
+      - name: Manual ACPI and Case-Sensitivity Preparation
         run: |
-          echo "Patching sm7325_UEFI.fd -> SM7325_UEFI.fd in edk2-msm hooks..."
-          find edk2-msm -type f \( -name "*.sh" -o -name "*.sh.inc" \) -exec sed -i "s/sm7325_UEFI.fd/SM7325_UEFI.fd/g" {} +
+          echo "=== Step 1: Manual ACPI Generation ==="
+          # Generate DSDT.aml manually to prevent 'file not found' error in build.py
+          iasl -ve UEFI/Platform/Nothing/sm7325/AcpiTables/spacewar/Dsdt.asl || (echo "iasl FAILED"; exit 1)
+          mkdir -p edk2-msm/Platform/Nothing/sm7325/AcpiTables/spacewar
+          # Note: iasl often produces Uppercase .AML or lowercase .aml, we rename to match FDF
+          cp -f Dsdt.aml edk2-msm/Platform/Nothing/sm7325/AcpiTables/spacewar/DSDT.aml || cp -f DSDT.aml edk2-msm/Platform/Nothing/sm7325/AcpiTables/spacewar/DSDT.aml || true
 
       - name: Build UEFI
         run: |
           # Define Cross-Compiler Prefix
           export GCC5_AARCH64_PREFIX=aarch64-linux-gnu-
           
-          # Set PACKAGES_PATH (SimpleInit is now inside edk2-msm)
+          # Set PACKAGES_PATH
           export PACKAGES_PATH=$GITHUB_WORKSPACE/edk2-msm:$GITHUB_WORKSPACE/edk2-msm/Common/edk2
           
-          echo "PACKAGES_PATH: $PACKAGES_PATH"
-          
           cd edk2-msm
-          echo "=== Build starting (ACPI + UEFI + Packaging) ==="
-          ./build.sh -d spacewar -r RELEASE -u -A
+          echo "=== Step 2: Compilation (UEFI Only) ==="
+          ./build.sh -d spacewar -r RELEASE -u
 
-          echo "=== Build result ==="
+          echo "=== Step 3: Fixing Case Sensitivity for Packaging ==="
+          # The packaging hook expects sm7325_UEFI.fd (lowercase) but EDK2 might produce SM7325_UEFI.fd
+          FV_DIR="workspace/Build/spacewar/RELEASE_CLANG38/FV"
+          if [ -f "$FV_DIR/SM7325_UEFI.fd" ]; then
+            cp -f "$FV_DIR/SM7325_UEFI.fd" "$FV_DIR/sm7325_UEFI.fd"
+            echo "Copied: SM7325_UEFI.fd -> sm7325_UEFI.fd"
+          fi
+
+          echo "=== Step 4: Packaging (Output Generation) ==="
+          ./build.sh -d spacewar -r RELEASE -A
+
+          echo "=== Build Result Verification ==="
           ls -la boot-spacewar.img 2>/dev/null || (echo "boot-spacewar.img MISSING"; exit 1)
 
       - name: Verify build
