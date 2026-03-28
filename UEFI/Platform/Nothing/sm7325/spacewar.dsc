@@ -36,6 +36,7 @@
   # GICv3 Base Addresses
   gArmTokenSpaceGuid.PcdGicDistributorBase|0x17A00000
   gArmTokenSpaceGuid.PcdGicRedistributorsBase|0x17A60000
+  gArmTokenSpaceGuid.PcdGicInterruptInterfaceBase|0
 
   # Cihaz Bilgileri
   gRenegadePkgTokenSpaceGuid.PcdDeviceVendor|"Nothing"
