@@ -192,7 +192,7 @@ jobs:
             
           echo "=== Step 4: Firmware Discovery ==="
           # Find the generated FD file (handling case-insensitivity)
-          FOUND_FD=$(find workspace/Build/spacewar -name "*.fd" | grep -v "FVMAIN" | head -n 1)
+          FOUND_FD=$(find Build/spacewar -name "*.fd" | grep -v "FVMAIN" | head -n 1)
           if [ -z "$FOUND_FD" ]; then
             echo "CRITICAL ERROR: EDK2 did NOT generate a firmware file!"
             exit 1
