@@ -16,8 +16,8 @@ static ARM_MEMORY_REGION_DESCRIPTOR_EX gDeviceMemoryDescriptorEx[] = {
     {"RAM Partition 2",   0x100000000, 0x180000000, AddMem,        SYS_MEM,          SYS_MEM_CAP,         Conv,                          WRITE_BACK},
 
     /* Register regions (GICv3 v4.1 for 778G) */
-    {"GIC Distributor",   0x17A00000, 0x00010000, AddDev,          MMAP_IO,          INITIALIZED,         MmIO,                         NS_DEVICE},
-    {"GIC Redistributor", 0x17A60000, 0x00100000, AddDev,          MMAP_IO,          INITIALIZED,         MmIO,                         NS_DEVICE},
+    {"GIC Distributor",   0x17A00000, 0x00010000, AddDev,          MMAP_IO,          INITIALIZED,         MmIO,                         DEVICE},
+    {"GIC Redistributor", 0x17A60000, 0x00100000, AddDev,          MMAP_IO,          INITIALIZED,         MmIO,                         DEVICE},
     {"UART",              0x00994000, 0x00001000, AddDev,          MMAP_IO,          INITIALIZED,         MmIO,                         NS_DEVICE},
     
     /* Display / MDSS (FrameBuffer) */
