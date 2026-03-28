@@ -42,6 +42,10 @@
   gRenegadePkgTokenSpaceGuid.PcdDeviceProduct|"Phone (1)"
   gRenegadePkgTokenSpaceGuid.PcdDeviceCodeName|"spacewar"
 
+[LibraryClasses.common]
+  # Seri Logları Devre Dışı Bırak (Hata Çözümü İçin "Null" Kütüphanesi Kullan)
+  SerialPortLib|MdePkg/Library/BaseSerialPortLibNull/BaseSerialPortLibNull.inf
+
 [Components.common]
   # SimpleInit Boot Menu
   src/main/SimpleInitMain.inf
