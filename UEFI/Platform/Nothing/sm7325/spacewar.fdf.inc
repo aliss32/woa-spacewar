@@ -6,8 +6,6 @@
     SECTION UI = "ButtonsDxe"
   }
 
-  INF src/main/SimpleInitMain.inf
-
 // ACPI Tables
 FILE FREEFORM = 7E374E25-8E01-4FEE-87F2-390C23C606CD {
   SECTION RAW = Silicon/Qualcomm/sm7325/AcpiTables/dbg2.aml
