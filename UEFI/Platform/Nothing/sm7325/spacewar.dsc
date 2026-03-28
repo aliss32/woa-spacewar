@@ -44,6 +44,9 @@
   gRenegadePkgTokenSpaceGuid.PcdDeviceCodeName|"spacewar"
 
 [LibraryClasses.common]
+  # Memory Map
+  PlatformMemoryMapLib|Platform/Nothing/sm7325/Library/PlatformMemoryMapLib/PlatformMemoryMapLib.inf
+
   # Seri Logları Devre Dışı Bırak (Hata Çözümü İçin "Null" Kütüphanesi Kullan)
   SerialPortLib|MdePkg/Library/BaseSerialPortLibNull/BaseSerialPortLibNull.inf
 
