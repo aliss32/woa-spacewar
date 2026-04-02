@@ -69,6 +69,9 @@ jobs:
           # Overwrite memory map with DTB-compliant map
           cp woa-spacewar/UEFI/upstream_overrides/MemoryMapLib.c Mu-Silicium/Platforms/Nothing/spacewarPkg/Library/MemoryMapLib/MemoryMapLib.c
           
+          # Enable USB Host Mode (USBHS1_Config: 0x0 -> 0x1) for USB boot support
+          cp woa-spacewar/UEFI/upstream_overrides/ConfigurationMapLib.c Mu-Silicium/Platforms/Nothing/spacewarPkg/Library/ConfigurationMapLib/ConfigurationMapLib.c
+          
           # Remove MinidumpTADxe as its SMC call (0x32000105) causes TrustZone to crash on retail bootloaders
           find Mu-Silicium -type f \( -name "*.dsc" -o -name "*.fdf" -o -name "*.inc" \) -exec sed -i '/MinidumpTADxe/d' {} +
           
