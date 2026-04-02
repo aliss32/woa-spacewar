@@ -41,9 +41,6 @@ cp "$WINDOWS_DIR/UEFI/upstream_overrides/ConfigurationMapLib.c" \
 find Mu-Silicium -type f \( -name "*.dsc" -o -name "*.fdf" -o -name "*.inc" \) \
     -exec sed -i '/MinidumpTADxe/d' {} +
 
-# USB Host Modu'nu PCD üzerinden zorla (VBUS tetiklemesi için)
-sed -i '/\[PcdsFixedAtBuild\]/a \  gQcomPkgTokenSpaceGuid.PcdUsbHostModeEnabled|TRUE\n  gQcomPkgTokenSpaceGuid.PcdUsbControllerInitMask|0x1' Mu-Silicium/Platforms/Nothing/spacewarPkg/spacewar.dsc
-
 echo -e "\n[4/5] Python Ortami Kuruluyor..."
 python3 -m venv uefi_venv
 source uefi_venv/bin/activate
