@@ -67,8 +67,7 @@ jobs:
       # ─────────────────────────────────────────────────────────
       - name: Install Dependencies & Patch Map
         run: |
-          # Overwrite flawed upstream memory map with our DTB-compliant map
-          cp woa-spacewar/UEFI/upstream_overrides/MemoryMapLib.c Mu-Silicium/Platforms/Nothing/spacewarPkg/Library/MemoryMapLib/MemoryMapLib.c
+          # Install Dependencies
           
           cd Mu-Silicium
           sudo apt-get update -y
