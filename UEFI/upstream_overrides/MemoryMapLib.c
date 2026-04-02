@@ -1,5 +1,5 @@
 #include <Library/BaseLib.h>
-#include <Library/PlatformMemoryMapLib.h>
+#include <Library/MemoryMapLib.h>
 
 STATIC
 EFI_MEMORY_REGION_DESCRIPTOR_EX
