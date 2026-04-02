@@ -1,2 +1,5 @@
 research/
 *.zip
+
+# Large binary driver packages (clone separately)
+Drivers/Kodiak-Drivers/
