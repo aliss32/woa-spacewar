@@ -36,7 +36,6 @@ jobs:
       - name: Update System Packages
         run: |
           sudo apt-get update -y
-          sudo apt-get dist-upgrade -y
 
       - name: Remove Conflicting Python Packages
         run: |
@@ -56,7 +55,7 @@ jobs:
       # ─────────────────────────────────────────────────────────
       - name: Clone Mu-Silicium Repository
         run: |
-          git clone https://github.com/Project-Silicium/Mu-Silicium.git --recursive
+          git clone https://github.com/Project-Silicium/Mu-Silicium.git --recursive --depth 1
           echo "=== Verify spacewar platform exists ==="
           ls -la Mu-Silicium/Platforms/Nothing/spacewarPkg/
           echo "=== Verify spacewar config exists ==="
@@ -74,8 +73,6 @@ jobs:
           find Mu-Silicium -type f \( -name "*.dsc" -o -name "*.fdf" -o -name "*.inc" \) -exec sed -i '/MinidumpTADxe/d' {} +
           
           cd Mu-Silicium
-          sudo apt-get update -y
-          sudo apt-get install --fix-missing -y
           sudo -E env "PATH=$PATH" bash ./setup_env.sh -p apt
 
       # ─────────────────────────────────────────────────────────
