@@ -47,6 +47,9 @@ jobs:
           find Mu-Silicium -type f \( -name "*.dsc" -o -name "*.fdf" -o -name "*.inc" \) \
             -exec sed -i '/MinidumpTADxe/d' {} +
 
+          # 3.5. Force USB Host Mode PCDs in spacewar.dsc
+          sed -i '/\[PcdsFixedAtBuild\]/a \  gQcomPkgTokenSpaceGuid.PcdUsbHostModeEnabled|TRUE\n  gQcomPkgTokenSpaceGuid.PcdUsbControllerInitMask|0x1' Mu-Silicium/Platforms/Nothing/spacewarPkg/spacewar.dsc
+
           # 4. Install REQUIRED system packages (mono-devel is REQUIRED for nuget/ExtDep)
           sudo apt-get update -y
           sudo apt-get install -y --no-install-recommends \

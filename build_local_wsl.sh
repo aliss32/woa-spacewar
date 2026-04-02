@@ -1,14 +1,16 @@
 #!/bin/bash
+# Hata durumunda dur
 set -e
 
 echo "========================================================"
 echo "      Spacewar UEFI Local Builder (WSL / Ubuntu)        "
 echo "========================================================"
 
-# Yavaşlıktan kaçınmak için build işlemini Windows dosya sistemi (/mnt/c/...) 
-# yerine, direkt Linux'un kendi diski (~/spacewar_build) üzerinde yapacağız.
+# Windows satır sonlarını (CRLF) Linux tipine (LF) zorla dönüştür (Kendi kendini düzeltme)
+sed -i 's/\r$//' "$0"
+
 BUILD_DIR=~/spacewar_build
-WINDOWS_DIR=$(pwd)
+WINDOWS_DIR="$(pwd)"
 
 echo -e "\n[1/5] Ubuntu bagimliliklari kontrol ediliyor..."
 sudo apt-get update -y
@@ -18,31 +20,31 @@ sudo apt-get install -y --no-install-recommends \
 mkdir -p "$BUILD_DIR"
 cd "$BUILD_DIR"
 
-echo -e "\n[2/5] Mu-Silicium Repository Klonlaniyor..."
-if [ ! -d "Mu-Silicium" ]; then
-    git clone https://github.com/Project-Silicium/Mu-Silicium.git --recursive --depth 1
-else
-    echo "Mu-Silicium zaten var, guncellenip sifirlaniyor..."
-    cd Mu-Silicium
-    git fetch --depth 1
-    git reset --hard origin/main
-    cd ..
+echo -e "\n[2/5] Mu-Silicium Hazirlaniyor..."
+if [ -d "Mu-Silicium" ]; then
+    echo "Eski dizin temizleniyor..."
+    rm -rf Mu-Silicium
 fi
 
+echo "Repository klonlaniyor (depth 1)..."
+git clone https://github.com/Project-Silicium/Mu-Silicium.git --recursive --depth 1
+
 echo -e "\n[3/5] Yerel Yamalar Uygulaniyor (Memory & USB Host)..."
-# Windows dizinindeki değişikliklerimizi klonlanan Linux dizinine taşıyoruz
+# Yamaları Windows dizininden alıp Linux build dizinine kopyalar
 cp "$WINDOWS_DIR/UEFI/upstream_overrides/MemoryMapLib.c" \
-   Mu-Silicium/Platforms/Nothing/spacewarPkg/Library/MemoryMapLib/MemoryMapLib.c
+   "Mu-Silicium/Platforms/Nothing/spacewarPkg/Library/MemoryMapLib/MemoryMapLib.c"
 
 cp "$WINDOWS_DIR/UEFI/upstream_overrides/ConfigurationMapLib.c" \
-   Mu-Silicium/Platforms/Nothing/spacewarPkg/Library/ConfigurationMapLib/ConfigurationMapLib.c
+   "Mu-Silicium/Platforms/Nothing/spacewarPkg/Library/ConfigurationMapLib/ConfigurationMapLib.c"
 
-# TrustZone SMC çökmelerini engelleyen sed yamamız
+# TrustZone SMC çökmelerini engelleyen yama
 find Mu-Silicium -type f \( -name "*.dsc" -o -name "*.fdf" -o -name "*.inc" \) \
     -exec sed -i '/MinidumpTADxe/d' {} +
 
-echo -e "\n[4/5] Python Build Ortami Kuruluyor..."
-# PEP 668 kurallarını aşmak için sanal ortam (venv) kullanıyoruz
+# USB Host Modu'nu PCD üzerinden zorla (VBUS tetiklemesi için)
+sed -i '/\[PcdsFixedAtBuild\]/a \  gQcomPkgTokenSpaceGuid.PcdUsbHostModeEnabled|TRUE\n  gQcomPkgTokenSpaceGuid.PcdUsbControllerInitMask|0x1' Mu-Silicium/Platforms/Nothing/spacewarPkg/spacewar.dsc
+
+echo -e "\n[4/5] Python Ortami Kuruluyor..."
 python3 -m venv uefi_venv
 source uefi_venv/bin/activate
 pip install --no-cache-dir -r Mu-Silicium/pip-requirements.txt
@@ -50,12 +52,13 @@ pip install --no-cache-dir -r Mu-Silicium/pip-requirements.txt
 echo -e "\n[5/5] UEFI Derleniyor (DEBUG Modu)..."
 export CLANGPDB_AARCH64_PREFIX=aarch64-linux-gnu-
 cd Mu-Silicium
+# Stuart build sistemini baslat
 bash ./build_uefi.sh -d spacewar -r DEBUG
 
 echo "========================================================"
 echo "    Derleme Tamamlandi! Dosyalar Windows'a Tasiniyor... "
 echo "========================================================"
-cp Mu-spacewar*.img "$WINDOWS_DIR/" 2>/dev/null || echo "HATA: Img dosyasi bulunamadi!"
+cp Mu-spacewar*.img "$WINDOWS_DIR/" 2>/dev/null || echo "UYARI: Mu-spacewar*.img bulanamadi, lutfen Build dizinini kontrol edin."
 cp Build/build_output.log "$WINDOWS_DIR/build_local.log" 2>/dev/null || true
 
-echo "Islem bitti. Mu-spacewar.img dosyasi su an Windows klasorunde hazir: $WINDOWS_DIR"
+echo -e "\nIslem bitti! Yeni UEFI imajini 'woa-spacewar' klasorunde bulabilirsin."
