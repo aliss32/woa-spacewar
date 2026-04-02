@@ -67,7 +67,11 @@ jobs:
       # ─────────────────────────────────────────────────────────
       - name: Install Dependencies & Patch Map
         run: |
-          # Install Dependencies
+          # Overwrite memory map with DTB-compliant map
+          cp woa-spacewar/UEFI/upstream_overrides/MemoryMapLib.c Mu-Silicium/Platforms/Nothing/spacewarPkg/Library/MemoryMapLib/MemoryMapLib.c
+          
+          # Remove MinidumpTADxe as its SMC call (0x32000105) causes TrustZone to crash on retail bootloaders
+          find Mu-Silicium -type f \( -name "*.dsc" -o -name "*.fdf" -o -name "*.inc" \) -exec sed -i '/MinidumpTADxe/d' {} +
           
           cd Mu-Silicium
           sudo apt-get update -y
