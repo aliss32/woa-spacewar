@@ -47,10 +47,10 @@ jobs:
           find Mu-Silicium -type f \( -name "*.dsc" -o -name "*.fdf" -o -name "*.inc" \) \
             -exec sed -i '/MinidumpTADxe/d' {} +
 
-          # 4. Install ONLY required system packages (no full-upgrade, no mono)
+          # 4. Install REQUIRED system packages (mono-devel is REQUIRED for nuget/ExtDep)
           sudo apt-get update -y
           sudo apt-get install -y --no-install-recommends \
-            gcc-aarch64-linux-gnu nasm lld clang llvm uuid-dev build-essential git ca-certificates
+            gcc-aarch64-linux-gnu nasm lld clang llvm uuid-dev build-essential git ca-certificates mono-devel
 
           # 5. Install Python build tools
           pip install --no-cache-dir -r Mu-Silicium/pip-requirements.txt
