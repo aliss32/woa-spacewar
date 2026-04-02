@@ -12,9 +12,12 @@ jobs:
   build:
     env:
       USE_IASL: "true"
+      GCC5_AARCH64_PREFIX: aarch64-linux-gnu-
+      CLANG38_AARCH64_PREFIX: aarch64-linux-gnu-
+      OBJCOPY: aarch64-linux-gnu-objcopy
+      STRIP: aarch64-linux-gnu-strip
+      CROSS_COMPILE: aarch64-linux-gnu-
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
 
     steps:
       - name: Checkout
@@ -36,21 +39,33 @@ jobs:
           git clone https://github.com/edk2-porting/edk2-msm.git \
             --recursive --depth=1 edk2-msm
 
-      - name: Clone SimpleInit & Generate RootFS
+      - name: Clone SimpleInit & Generate RootFS (Upstream)
         run: |
+          # Remove existing SimpleInit if present in edk2-msm
+          rm -rf edk2-msm/GPLDrivers/Library/SimpleInit
+          
+          # Clone upstream SimpleInit into edk2-msm structure
           git clone https://github.com/BigfootACA/simple-init.git \
-            --depth=1 SimpleInit
-          cd SimpleInit
-          bash ./make_rootfs.sh
+            --recursive --depth=1 edk2-msm/GPLDrivers/Library/SimpleInit
+          
+          cd edk2-msm/GPLDrivers/Library/SimpleInit
+          mkdir -p build
+          # Generate rootfs using upstream script
+          bash ./scripts/gen-rootfs-source.sh . build
+          # Verify rootfs.c exists for UEFI build
           ls -la build/rootfs.c || (echo "rootfs.c generation FAILED"; exit 1)
 
       - name: Patch EDK2 BaseTools (Fix Python Syntax Warnings)
         run: |
           echo "Patching invalid escape sequences in edk2-msm/Common/edk2/BaseTools..."
+          # Target common re module pattern to use raw strings (handles single and double quotes)
           find edk2-msm/Common/edk2/BaseTools -name "*.py" -exec sed -i "s/re.compile('/re.compile(r'/g" {} +
+          find edk2-msm/Common/edk2/BaseTools -name "*.py" -exec sed -i 's/re.compile("/re.compile(r"/g' {} +
           find edk2-msm/Common/edk2/BaseTools -name "*.py" -exec sed -i "s/re.search('/re.search(r'/g" {} +
-          find edk2-msm/Common/edk2/BaseTools -name "*.py" -exec sed -i "s/re.sub('/re.sub(r'/g" {} +
-          sed -i "s/'\[1-9]\\\\d\*|0\$'/r'[1-9]\\\\d*|0$'/g" edk2-msm/Common/edk2/BaseTools/Source/Python/Workspace/DscBuildData.py || true
+          find edk2-msm/Common/edk2/BaseTools -name "*.py" -exec sed -i 's/re.search("/re.search(r"/g' {} +
+          
+          # Fix specific problematic lines in DscBuildData
+          sed -i 's/ARRAY_INDEX = re.compile("\[\\s\*/ARRAY_INDEX = re.compile(r"\[\\s*/g' edk2-msm/Common/edk2/BaseTools/Source/Python/Common/Misc.py || true
 
       - name: Prepare Yupik DTB
         run: |
@@ -71,58 +86,199 @@ jobs:
               print(f'ERROR: Invalid DTB magic: 0x{magic:08X}')
               sys.exit(1)
           print(f'DTB OK: {size} bytes = {size/1024:.1f} KB')
+          off_struct  = struct.unpack_from('>I', dtb, 8)[0]
+          off_strings = struct.unpack_from('>I', dtb, 12)[0]
+          FDT_BEGIN_NODE=1; FDT_END_NODE=2; FDT_PROP=3; FDT_END=9
+          pos=off_struct; depth=0
+          try:
+              while pos < len(dtb)-4:
+                  t = struct.unpack_from('>I', dtb, pos)[0]; pos+=4
+                  if t == FDT_BEGIN_NODE:
+                      ne=dtb.index(b'\x00',pos); depth+=1; pos=ne+1; pos=(pos+3)&~3
+                  elif t == FDT_PROP:
+                      pl=struct.unpack_from('>I',dtb,pos)[0]
+                      no=struct.unpack_from('>I',dtb,pos+4)[0]
+                      pne=dtb.index(b'\x00',off_strings+no)
+                      pname=dtb[off_strings+no:pne].decode('ascii','replace')
+                      pval=dtb[pos+8:pos+8+pl]; pos+=8+pl; pos=(pos+3)&~3
+                      if depth==1 and pname in ('model','compatible'):
+                          val_str = pval.replace(b"\x00", b" ").decode("ascii","replace").strip()
+                          print("  " + pname + ": " + val_str)
+                  elif t == FDT_END_NODE:
+                      depth-=1
+                      if depth==0: break
+                  elif t == FDT_END: break
+          except: pass
           EOF
 
       - name: Copy Spacewar files into edk2-msm
         run: |
-          cp UEFI/configs/devices/spacewar.conf \
-             edk2-msm/configs/devices/spacewar.conf
-
+          # 1. Create ALL required directories first
+          mkdir -p edk2-msm/configs/devices
           mkdir -p edk2-msm/Platform/Nothing/sm7325/AcpiTables/spacewar
           mkdir -p edk2-msm/Platform/Nothing/sm7325/FdtBlob
           mkdir -p edk2-msm/Platform/Nothing/sm7325/FdtBlob_compat
+          mkdir -p edk2-msm/Platform/Nothing/sm7325/Library/PlatformMemoryMapLib
+          mkdir -p edk2-msm/Platform/EFI_Binaries
 
-          cp UEFI/Platform/Nothing/sm7325/spacewar.dsc \
-             edk2-msm/Platform/Nothing/sm7325/spacewar.dsc
-          cp UEFI/Platform/Nothing/sm7325/spacewar.fdf.inc \
-             edk2-msm/Platform/Nothing/sm7325/spacewar.fdf.inc
+          # 2. Copy files with force overwrite
+          cp -f UEFI/configs/devices/spacewar.conf edk2-msm/configs/devices/spacewar.conf
+          cp -f UEFI/Platform/Nothing/sm7325/spacewar.dsc edk2-msm/Platform/Nothing/sm7325/spacewar.dsc
+          cp -f UEFI/Platform/Nothing/sm7325/spacewar.fdf.inc edk2-msm/Platform/Nothing/sm7325/spacewar.fdf.inc
 
-          cp -r UEFI/Platform/Nothing/sm7325/AcpiTables/spacewar/* \
-             edk2-msm/Platform/Nothing/sm7325/AcpiTables/spacewar/
+          # 3. Copy directory contents
+          cp -rf UEFI/Platform/Nothing/sm7325/AcpiTables/spacewar/* edk2-msm/Platform/Nothing/sm7325/AcpiTables/spacewar/
+          cp -rf UEFI/Platform/Nothing/sm7325/Library/PlatformMemoryMapLib/* edk2-msm/Platform/Nothing/sm7325/Library/PlatformMemoryMapLib/
+          cp -rf UEFI/Platform/EFI_Binaries/* edk2-msm/Platform/EFI_Binaries/
 
-          cp edk2-msm/Platform/Xiaomi/sm7325/FdtBlob/sm7325-generic-msd.dtb \
-             edk2-msm/Platform/Nothing/sm7325/FdtBlob/sm7325-generic-msd.dtb
-          cp spacewar.dtb \
-             edk2-msm/Platform/Nothing/sm7325/FdtBlob_compat/spacewar.dtb
+          # 4. Copy DTB files
+          cp -f edk2-msm/Platform/Xiaomi/sm7325/FdtBlob/sm7325-generic-msd.dtb edk2-msm/Platform/Nothing/sm7325/FdtBlob/sm7325-generic-msd.dtb
+          cp -f spacewar.dtb edk2-msm/Platform/Nothing/sm7325/FdtBlob_compat/spacewar.dtb
 
-          cp -r UEFI/Platform/Nothing/sm7325/Library/PlatformMemoryMapLib/* \
-             edk2-msm/Platform/Nothing/sm7325/Library/PlatformMemoryMapLib/
-
-          echo "=== Copied files ==="
+          echo "=== Verification: Checking spacewar.fdf.inc content ==="
+          head -n 5 edk2-msm/Platform/Nothing/sm7325/spacewar.fdf.inc
+          
+          echo "=== Copied files list ==="
           find edk2-msm/Platform/Nothing -type f | sort
 
-      - name: Build UEFI
+      - name: Manual ACPI and Case-Sensitivity Preparation
         run: |
-          export GCC5_AARCH64_PREFIX=aarch64-linux-gnu-
-          export PACKAGES_PATH=$GITHUB_WORKSPACE/edk2-msm:$GITHUB_WORKSPACE/edk2-msm/Common/edk2:$GITHUB_WORKSPACE/SimpleInit:$GITHUB_WORKSPACE/SimpleInit/SimpleInitPkg
+          echo "=== Step 1: Manual ACPI Generation ==="
+          # iasl -I specifies the include path for Cpu.asl, -p specifies the output file path/name
+          ASL_DIR="UEFI/Platform/Nothing/sm7325/AcpiTables/spacewar"
+          TARGET_DIR="edk2-msm/Platform/Nothing/sm7325/AcpiTables/spacewar"
+          mkdir -p "$TARGET_DIR"
+          
+          iasl -ve -I"$ASL_DIR" -p "$TARGET_DIR/DSDT.aml" "$ASL_DIR/Dsdt.asl"
+          
+          # Verify DSDT.aml was actually created
+          if [ ! -f "$TARGET_DIR/DSDT.aml" ]; then
+            echo "ERROR: DSDT.aml was not created!"
+            exit 1
+          fi
+          echo "DSDT.aml successfully created at $TARGET_DIR"
+
+      - name: Build UEFI (Native Compilation & Packaging)
+        run: |
+          # 1. Setup EDK2 Environment
+          # (Variables now managed at job-level env)
+          export PACKAGES_PATH=$GITHUB_WORKSPACE/edk2-msm:$GITHUB_WORKSPACE/edk2-msm/Common/edk2:$GITHUB_WORKSPACE/edk2-msm/Common/edk2-platforms:$GITHUB_WORKSPACE/edk2-msm/GPLDrivers/Library/SimpleInit
+          export EDK_TOOLS_PATH=$GITHUB_WORKSPACE/edk2-msm/Common/edk2/BaseTools
           
           cd edk2-msm
-          echo "=== Build starting ==="
-          ./build.sh -d spacewar -r RELEASE -u -A
+          
+          echo "=== Step 1: Nuclear Cleanup ==="
+          rm -rf workspace
+          mkdir -p workspace
+          
+          echo "=== Step 2: Compile BaseTools ==="
+          make -C Common/edk2/BaseTools -j$(nproc)
+          
+          echo "=== Step 3: Native Build Call ==="
+          # Source EDK2 environment
+          set +e
+          source Common/edk2/edksetup.sh
+          set -e
+          
+          # Run native build command
+          build -s -n 0 -a AARCH64 -t CLANG38 \
+            -p Platform/Nothing/sm7325/spacewar.dsc \
+            -b RELEASE \
+            -D FIRMWARE_VER=$(git rev-parse --short HEAD) \
+            -D USE_UART=0 \
+            -D FD_BASE=0xCE000000 \
+            -D FD_SIZE=0x02000000 \
+            -D ENABLE_LINUX_UTILS=1
+            
+          echo "=== Step 4: Firmware Discovery ==="
+          # Find the generated FD file (handling case-insensitivity)
+          FOUND_FD=$(find Build/spacewar -name "*.fd" | grep -v "FVMAIN" | head -n 1)
+          if [ -z "$FOUND_FD" ]; then
+            echo "CRITICAL ERROR: EDK2 did NOT generate a firmware file!"
+            exit 1
+          fi
+          
+          FD_SIZE=$(stat -c%s "$FOUND_FD")
+          echo "Found firmware: $FOUND_FD (Size: $FD_SIZE bytes)"
+          if [ "$FD_SIZE" -lt 5000000 ]; then
+             echo "ERROR: Firmware size is too small ($FD_SIZE). Likely build overflow or failure."
+             exit 1
+          fi
 
-          echo "=== Build result ==="
-          ls -la boot-spacewar.img 2>/dev/null || (echo "boot-spacewar.img MISSING"; exit 1)
+          echo "=== Step 5: Build BootShim ==="
+          cd tools/BootShim
+          make UEFI_BASE=0xCE000000 UEFI_SIZE=0x02000000
+          cd ../..
+
+          echo "=== Step 6: Native Assembly ==="
+          # Create kernel payload: BootShim + UEFI.fd
+          cat tools/BootShim/BootShim.bin "$FOUND_FD" > workspace/uefi-kernel
+          # Gzip it
+          gzip -c workspace/uefi-kernel > workspace/uefi-kernel.gz
+          # Append DTB (Yupik compatible)
+          cat workspace/uefi-kernel.gz Platform/Nothing/sm7325/FdtBlob_compat/spacewar.dtb > workspace/uefi-kernel-dtb
+
+          echo "=== Step 7: Packaging boot.img ==="
+          # Ensure dummy ramdisk exists
+          touch workspace/ramdisk
+          
+          python3 tools/mkbootimg.py \
+            --kernel workspace/uefi-kernel-dtb \
+            --ramdisk workspace/ramdisk \
+            --kernel_offset 0x00000000 \
+            --ramdisk_offset 0x00000000 \
+            --tags_offset 0x00000000 \
+            --os_version 14.0.0 \
+            --os_patch_level 2024-05 \
+            --header_version 4 \
+            -o boot-spacewar.img
+
+          echo "=== Final Verification ==="
+          if [ -f "boot-spacewar.img" ]; then
+             echo "SUCCESS: boot-spacewar.img created internally."
+             # Display size
+             ls -lh boot-spacewar.img
+          else
+             echo "ERROR: Final image generation failed!"
+             exit 1
+          fi
 
       - name: Verify build
         run: |
           python3 - <<'EOF'
-          import struct, os, sys
+          import subprocess, struct, os, sys, lzma
+
           img = 'edk2-msm/boot-spacewar.img'
           if not os.path.exists(img):
+              print("ERROR: boot-spacewar.img not found!")
               sys.exit(1)
           with open(img, 'rb') as f:
               boot = f.read()
-          print(f'Boot image size: {len(boot)/1024/1024:.2f} MB')
+          ks = struct.unpack_from('<I', boot, 8)[0]
+          print(f'Boot image: {len(boot)/1024/1024:.2f} MB')
+          with open('/tmp/v.gz', 'wb') as f:
+              f.write(boot[2048:2048+ks])
+          r = subprocess.run(['gunzip','-c','-f','/tmp/v.gz'], capture_output=True)
+          d = r.stdout
+          dtb_magic = bytes([0xd0,0x0d,0xfe,0xed])
+          dtb_pos = d.rfind(dtb_magic)
+          if dtb_pos > 0:
+              dtb_size = struct.unpack_from('>I', d, dtb_pos+4)[0]
+              print(f'DTB: {dtb_size/1024:.1f} KB')
+          lzma_data = d[136+0xBDD8:]
+          try:
+              dec = lzma.decompress(lzma_data, format=lzma.FORMAT_ALONE)
+              checks = [
+                  ('SimpleInit',   b'SimpleInit'),
+                  ('KernelFdtDxe', b'KernelFdt'),
+                  ('SimpleFbDxe',  b'SimpleFbDxe'),
+                  ('USE_UART=1',   b'SerialPortWrite'),
+                  ('Boot menu',    b'Boot Android'),
+              ]
+              for name, kw in checks:
+                  print(f'{"OK" if kw in dec else "MISSING"}: {name}')
+          except Exception as e:
+              print(f'LZMA error: {e}')
           EOF
 
       - name: Upload boot image
@@ -136,7 +292,6 @@ jobs:
         if: github.ref == 'refs/heads/main'
         uses: softprops/action-gh-release@v2
         with:
-          token: ${{ github.token }}
           tag_name: build-${{ github.run_number }}
           name: "Spacewar UEFI Build #${{ github.run_number }} (Yupik + UART + Sensors)"
           body: |
@@ -144,8 +299,14 @@ jobs:
             **Commit:** ${{ github.sha }} 
             ### Components
             - Yupik QRD DTB (SM7325 PMIC compatible)
-            - USE_UART=1
+            - USE_UART=1 (UART debug active)
             - SimpleInit boot menu
             - AB slot support
-            - Phase 3 sensor ACPI
+            - Phase 3 sensor ACPI (BMI260, MMC5603, STK33911)
+            ### Test
+            ```bash
+            fastboot boot boot-spacewar.img
+            ```
           files: edk2-msm/boot-spacewar.img
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

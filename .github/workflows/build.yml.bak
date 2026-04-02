@@ -1,0 +1,152 @@
+name: Build WOA-Spacewar UEFI
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'UEFI/**'
+      - 'DTB/**'
+      - '.github/workflows/build.yml'
+
+jobs:
+  build:
+    env:
+      USE_IASL: "true"
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential uuid-dev iasl git nasm \
+            python3 python3-pil python3-git \
+            gcc-aarch64-linux-gnu clang llvm lld \
+            mono-devel acpica-tools gettext \
+            libsdl2-2.0-0 libsdl2-dev abootimg \
+            device-tree-compiler
+
+      - name: Clone edk2-msm
+        run: |
+          git clone https://github.com/edk2-porting/edk2-msm.git \
+            --recursive --depth=1 edk2-msm
+
+      - name: Clone SimpleInit & Generate RootFS
+        run: |
+          git clone https://github.com/BigfootACA/simple-init.git \
+            --depth=1 SimpleInit
+          cd SimpleInit
+          mkdir -p build
+          bash ./scripts/gen-rootfs-source.sh . build
+          ls -la build/rootfs.c || (echo "rootfs.c generation FAILED"; exit 1)
+
+      - name: Patch EDK2 BaseTools (Fix Python Syntax Warnings)
+        run: |
+          echo "Patching invalid escape sequences in edk2-msm/Common/edk2/BaseTools..."
+          find edk2-msm/Common/edk2/BaseTools -name "*.py" -exec sed -i "s/re.compile('/re.compile(r'/g" {} +
+          find edk2-msm/Common/edk2/BaseTools -name "*.py" -exec sed -i "s/re.search('/re.search(r'/g" {} +
+          find edk2-msm/Common/edk2/BaseTools -name "*.py" -exec sed -i "s/re.sub('/re.sub(r'/g" {} +
+          sed -i "s/'\[1-9]\\\\d\*|0\$'/r'[1-9]\\\\d*|0$'/g" edk2-msm/Common/edk2/BaseTools/Source/Python/Workspace/DscBuildData.py || true
+
+      - name: Prepare Yupik DTB
+        run: |
+          if [ -f "DTB/spacewar-yupik.dtb" ]; then
+            cp DTB/spacewar-yupik.dtb spacewar.dtb
+            echo "Using Yupik DTB from repo"
+          else
+            cp edk2-msm/Platform/Xiaomi/sm7325/FdtBlob_compat/lisa.dtb spacewar.dtb
+            echo "Using lisa.dtb fallback"
+          fi
+          python3 - <<'EOF'
+          import struct, sys
+          with open('spacewar.dtb', 'rb') as f:
+              dtb = f.read()
+          magic = struct.unpack_from('>I', dtb, 0)[0]
+          size  = struct.unpack_from('>I', dtb, 4)[0]
+          if magic != 0xD00DFEED:
+              print(f'ERROR: Invalid DTB magic: 0x{magic:08X}')
+              sys.exit(1)
+          print(f'DTB OK: {size} bytes = {size/1024:.1f} KB')
+          EOF
+
+      - name: Copy Spacewar files into edk2-msm
+        run: |
+          cp UEFI/configs/devices/spacewar.conf \
+             edk2-msm/configs/devices/spacewar.conf
+
+          mkdir -p edk2-msm/Platform/Nothing/sm7325/AcpiTables/spacewar
+          mkdir -p edk2-msm/Platform/Nothing/sm7325/FdtBlob
+          mkdir -p edk2-msm/Platform/Nothing/sm7325/FdtBlob_compat
+
+          cp UEFI/Platform/Nothing/sm7325/spacewar.dsc \
+             edk2-msm/Platform/Nothing/sm7325/spacewar.dsc
+          cp UEFI/Platform/Nothing/sm7325/spacewar.fdf.inc \
+             edk2-msm/Platform/Nothing/sm7325/spacewar.fdf.inc
+
+          cp -r UEFI/Platform/Nothing/sm7325/AcpiTables/spacewar/* \
+             edk2-msm/Platform/Nothing/sm7325/AcpiTables/spacewar/
+
+          cp edk2-msm/Platform/Xiaomi/sm7325/FdtBlob/sm7325-generic-msd.dtb \
+             edk2-msm/Platform/Nothing/sm7325/FdtBlob/sm7325-generic-msd.dtb
+          cp spacewar.dtb \
+             edk2-msm/Platform/Nothing/sm7325/FdtBlob_compat/spacewar.dtb
+
+          cp -r UEFI/Platform/Nothing/sm7325/Library/PlatformMemoryMapLib/* \
+             edk2-msm/Platform/Nothing/sm7325/Library/PlatformMemoryMapLib/
+
+          echo "=== Copied files ==="
+          find edk2-msm/Platform/Nothing -type f | sort
+
+      - name: Build UEFI
+        run: |
+          export GCC5_AARCH64_PREFIX=aarch64-linux-gnu-
+          export PACKAGES_PATH=$GITHUB_WORKSPACE/edk2-msm:$GITHUB_WORKSPACE/edk2-msm/Common/edk2:$GITHUB_WORKSPACE/SimpleInit:$GITHUB_WORKSPACE/SimpleInit/SimpleInitPkg
+          
+          cd edk2-msm
+          echo "=== Build starting ==="
+          ./build.sh -d spacewar -r RELEASE -u -A
+
+          echo "=== Build result ==="
+          ls -la boot-spacewar.img 2>/dev/null || (echo "boot-spacewar.img MISSING"; exit 1)
+
+      - name: Verify build
+        run: |
+          python3 - <<'EOF'
+          import struct, os, sys
+          img = 'edk2-msm/boot-spacewar.img'
+          if not os.path.exists(img):
+              sys.exit(1)
+          with open(img, 'rb') as f:
+              boot = f.read()
+          print(f'Boot image size: {len(boot)/1024/1024:.2f} MB')
+          EOF
+
+      - name: Upload boot image
+        uses: actions/upload-artifact@v4
+        with:
+          name: boot-spacewar-${{ github.run_number }}
+          path: edk2-msm/boot-spacewar.img
+          if-no-files-found: error
+
+      - name: Create Release
+        if: github.ref == 'refs/heads/main'
+        uses: softprops/action-gh-release@v2
+        with:
+          token: ${{ github.token }}
+          tag_name: build-${{ github.run_number }}
+          name: "Spacewar UEFI Build #${{ github.run_number }} (Yupik + UART + Sensors)"
+          body: |
+            ## WOA-Spacewar UEFI Build #${{ github.run_number }}
+            **Commit:** ${{ github.sha }} 
+            ### Components
+            - Yupik QRD DTB (SM7325 PMIC compatible)
+            - USE_UART=1
+            - SimpleInit boot menu
+            - AB slot support
+            - Phase 3 sensor ACPI
+          files: edk2-msm/boot-spacewar.img

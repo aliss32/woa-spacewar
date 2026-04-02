@@ -1,4 +1,5 @@
 [Defines]
+  ENABLE_LINUX_UTILS             = 1
   VENDOR_NAME                    = Nothing
   PLATFORM_NAME                  = spacewar
   PLATFORM_GUID                  = 2a2c9e2b-3f4d-4a1b-8c5e-1d6f7a8b9c0d
@@ -32,7 +33,23 @@
   gQcomTokenSpaceGuid.PcdMipiFrameBufferHeight|2400
   gSimpleInitTokenSpaceGuid.PcdGuiDefaultDPI|440
 
+  # GICv3 Base Addresses
+  gArmTokenSpaceGuid.PcdGicDistributorBase|0x17A00000
+  gArmTokenSpaceGuid.PcdGicRedistributorsBase|0x17A60000
+  gArmTokenSpaceGuid.PcdGicInterruptInterfaceBase|0
+
   # Cihaz Bilgileri
   gRenegadePkgTokenSpaceGuid.PcdDeviceVendor|"Nothing"
   gRenegadePkgTokenSpaceGuid.PcdDeviceProduct|"Phone (1)"
   gRenegadePkgTokenSpaceGuid.PcdDeviceCodeName|"spacewar"
+
+[LibraryClasses.common]
+  # Memory Map
+  PlatformMemoryMapLib|Platform/Nothing/sm7325/Library/PlatformMemoryMapLib/PlatformMemoryMapLib.inf
+
+  # Seri Logları Devre Dışı Bırak (Hata Çözümü İçin "Null" Kütüphanesi Kullan)
+  SerialPortLib|MdePkg/Library/BaseSerialPortLibNull/BaseSerialPortLibNull.inf
+
+[Components.common]
+  # SimpleInit Boot Menu
+  src/main/SimpleInitMain.inf
