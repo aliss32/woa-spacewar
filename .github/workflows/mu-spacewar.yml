@@ -4,188 +4,80 @@ on:
   workflow_dispatch:
     inputs:
       build_type:
-        description: 'Build Type (DEBUG or RELEASE)'
+        description: 'Build Type'
         required: false
         default: 'DEBUG'
         type: choice
-        options:
-          - DEBUG
-          - RELEASE
+        options: [DEBUG, RELEASE]
 
 env:
-  CI_BUILD: "true"
+  CI_BUILD: "false"                       # Skip setup_env.sh full-upgrade
+  PIP_BREAK_SYSTEM_PACKAGES: "1"
   CLANGPDB_AARCH64_PREFIX: aarch64-linux-gnu-
 
 jobs:
   build:
     runs-on: ubuntu-24.04
-    timeout-minutes: 60
+    timeout-minutes: 30
 
     steps:
-      # ─────────────────────────────────────────────────────────
-      # Step 1: Checkout our repository (for reference files only)
-      # ─────────────────────────────────────────────────────────
-      - name: Checkout Repository
+      - name: Checkout
         uses: actions/checkout@v4
-        with:
-          path: woa-spacewar
+        with: { path: woa-spacewar }
 
-      # ─────────────────────────────────────────────────────────
-      # Step 2: System preparation
-      # ─────────────────────────────────────────────────────────
-      - name: Update System Packages
-        run: |
-          sudo apt-get update -y
-
-      - name: Remove Conflicting Python Packages
-        run: |
-          # Fix 'Cannot uninstall rich' error from Debian-managed packages
-          sudo apt-get remove -y python3-rich || true
-
-      - name: Set PIP Environment (Bypass PEP 668)
-        run: echo "PIP_BREAK_SYSTEM_PACKAGES=1" >> $GITHUB_ENV
-
-      - name: Setup Python 3.12
+      - name: Setup Python
         uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
+        with: { python-version: '3.12' }
 
-      # ─────────────────────────────────────────────────────────
-      # Step 3: Clone Mu-Silicium (upstream, includes spacewar)
-      # ─────────────────────────────────────────────────────────
-      - name: Clone Mu-Silicium Repository
+      - name: Clone Mu-Silicium
+        run: git clone https://github.com/Project-Silicium/Mu-Silicium.git --recursive --depth 1
+
+      # ── Apply all patches in one step ──
+      - name: Patch & Install Deps
         run: |
-          git clone https://github.com/Project-Silicium/Mu-Silicium.git --recursive --depth 1
-          echo "=== Verify spacewar platform exists ==="
-          ls -la Mu-Silicium/Platforms/Nothing/spacewarPkg/
-          echo "=== Verify spacewar config exists ==="
-          cat Mu-Silicium/Resources/Configs/spacewar.conf
+          # 1. Override MemoryMapLib (DTB-compliant)
+          cp woa-spacewar/UEFI/upstream_overrides/MemoryMapLib.c \
+             Mu-Silicium/Platforms/Nothing/spacewarPkg/Library/MemoryMapLib/MemoryMapLib.c
 
-      # ─────────────────────────────────────────────────────────
-      # Step 4: Install build dependencies & Patch Upstream Map
-      # ─────────────────────────────────────────────────────────
-      - name: Install Dependencies & Patch Map
-        run: |
-          # Overwrite memory map with DTB-compliant map
-          cp woa-spacewar/UEFI/upstream_overrides/MemoryMapLib.c Mu-Silicium/Platforms/Nothing/spacewarPkg/Library/MemoryMapLib/MemoryMapLib.c
-          
-          # Enable USB Host Mode (USBHS1_Config: 0x0 -> 0x1) for USB boot support
-          cp woa-spacewar/UEFI/upstream_overrides/ConfigurationMapLib.c Mu-Silicium/Platforms/Nothing/spacewarPkg/Library/ConfigurationMapLib/ConfigurationMapLib.c
-          
-          # Remove MinidumpTADxe as its SMC call (0x32000105) causes TrustZone to crash on retail bootloaders
-          find Mu-Silicium -type f \( -name "*.dsc" -o -name "*.fdf" -o -name "*.inc" \) -exec sed -i '/MinidumpTADxe/d' {} +
-          
-          cd Mu-Silicium
-          sudo -E env "PATH=$PATH" bash ./setup_env.sh -p apt
+          # 2. Override ConfigurationMapLib (USB Host Mode: 0x0→0x1)
+          cp woa-spacewar/UEFI/upstream_overrides/ConfigurationMapLib.c \
+             Mu-Silicium/Platforms/Nothing/spacewarPkg/Library/ConfigurationMapLib/ConfigurationMapLib.c
 
-      # ─────────────────────────────────────────────────────────
-      # Step 5: Build UEFI firmware (DEBUG mode by default)
-      # ─────────────────────────────────────────────────────────
-      - name: Build UEFI Firmware
-        id: build_uefi
-        continue-on-error: true
+          # 3. Remove MinidumpTADxe (TrustZone SMC crash on retail)
+          find Mu-Silicium -type f \( -name "*.dsc" -o -name "*.fdf" -o -name "*.inc" \) \
+            -exec sed -i '/MinidumpTADxe/d' {} +
+
+          # 4. Install ONLY required system packages (no full-upgrade, no mono)
+          sudo apt-get update -y
+          sudo apt-get install -y --no-install-recommends \
+            gcc-aarch64-linux-gnu nasm lld clang llvm uuid-dev build-essential git ca-certificates
+
+          # 5. Install Python build tools
+          pip install --no-cache-dir -r Mu-Silicium/pip-requirements.txt
+
+      # ── Build ──
+      - name: Build UEFI
+        id: build
         run: |
           cd Mu-Silicium
+          MODE="${{ github.event.inputs.build_type || 'DEBUG' }}"
+          echo "mode=$MODE" >> $GITHUB_OUTPUT
+          bash ./build_uefi.sh -d spacewar -r $MODE 2>&1 | tee ../build.log
+          exit ${PIPESTATUS[0]}
 
-          BUILD_MODE="${{ github.event.inputs.build_type || 'DEBUG' }}"
-          echo "Building spacewar in ${BUILD_MODE} mode..."
-          echo "build_mode=${BUILD_MODE}" >> $GITHUB_OUTPUT
-
-          # Run the build and capture full log
-          bash ./build_uefi.sh -d spacewar -r ${BUILD_MODE} 2>&1 | tee ../build_output.log
-
-          # Check build result
-          BUILD_EXIT=${PIPESTATUS[0]}
-          echo "build_exit_code=${BUILD_EXIT}" >> $GITHUB_OUTPUT
-
-          if [ $BUILD_EXIT -ne 0 ]; then
-            echo "::error::UEFI build failed with exit code ${BUILD_EXIT}"
-            echo "=== Last 100 lines of build log ==="
-            tail -100 ../build_output.log
-          fi
-
-          exit $BUILD_EXIT
-
-      # ─────────────────────────────────────────────────────────
-      # Step 6: Capture build diagnostics (even on failure)
-      # ─────────────────────────────────────────────────────────
-      - name: Capture Build Report
-        if: always()
-        run: |
-          mkdir -p build_artifacts
-
-          # Copy full build log
-          cp build_output.log build_artifacts/ 2>/dev/null || true
-
-          # Copy Stuart build report if generated
-          find Mu-Silicium/Build -name "BUILD_REPORT.*" -exec cp {} build_artifacts/ \; 2>/dev/null || true
-          find Mu-Silicium/Build -name "*.log" -exec cp {} build_artifacts/ \; 2>/dev/null || true
-
-          # Capture environment info for debugging
-          echo "=== Build Environment ===" > build_artifacts/environment.txt
-          echo "Date: $(date -u)" >> build_artifacts/environment.txt
-          echo "Build Mode: ${{ steps.build_uefi.outputs.build_mode }}" >> build_artifacts/environment.txt
-          echo "Exit Code: ${{ steps.build_uefi.outputs.build_exit_code }}" >> build_artifacts/environment.txt
-          echo "Python: $(python3 --version)" >> build_artifacts/environment.txt
-          echo "GCC: $(aarch64-linux-gnu-gcc --version | head -1)" >> build_artifacts/environment.txt
-          echo "Clang: $(clang --version | head -1)" >> build_artifacts/environment.txt
-          echo "" >> build_artifacts/environment.txt
-          echo "=== spacewar.conf ===" >> build_artifacts/environment.txt
-          cat Mu-Silicium/Resources/Configs/spacewar.conf >> build_artifacts/environment.txt 2>/dev/null || true
-
-          # List generated files
-          echo "" >> build_artifacts/environment.txt
-          echo "=== Build Output Files ===" >> build_artifacts/environment.txt
-          find Mu-Silicium/Build -name "*.fd" -o -name "*.img" 2>/dev/null >> build_artifacts/environment.txt || true
-          ls -la Mu-Silicium/Mu-spacewar* 2>/dev/null >> build_artifacts/environment.txt || true
-
-      - name: Upload Build Logs (Always)
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: Spacewar-Build-Logs-${{ github.run_number }}
-          path: build_artifacts/
-          retention-days: 30
-
-      # ─────────────────────────────────────────────────────────
-      # Step 7: Upload firmware image (only on success)
-      # ─────────────────────────────────────────────────────────
+      # ── Upload firmware ──
       - name: Upload UEFI Image
-        if: steps.build_uefi.outcome == 'success'
+        if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: Mu-Spacewar-UEFI-${{ github.event.inputs.build_type || 'DEBUG' }}-${{ github.run_number }}
+          name: Mu-Spacewar-${{ steps.build.outputs.mode }}-${{ github.run_number }}
           path: Mu-Silicium/Mu-spacewar*
-          if-no-files-found: warn
 
-      # ─────────────────────────────────────────────────────────
-      # Step 8: Build summary
-      # ─────────────────────────────────────────────────────────
-      - name: Build Summary
+      # ── Upload logs (always) ──
+      - name: Upload Build Logs
         if: always()
-        run: |
-          echo "============================================"
-          echo "  SPACEWAR UEFI BUILD SUMMARY"
-          echo "============================================"
-          echo "  Mode     : ${{ steps.build_uefi.outputs.build_mode }}"
-          echo "  Result   : ${{ steps.build_uefi.outcome }}"
-          echo "  Exit Code: ${{ steps.build_uefi.outputs.build_exit_code }}"
-          echo ""
-
-          if [ "${{ steps.build_uefi.outcome }}" == "success" ]; then
-            echo "  OUTPUT FILES:"
-            ls -lh Mu-Silicium/Mu-spacewar* 2>/dev/null || echo "  (no output files found)"
-            echo ""
-            echo "  NEXT STEPS:"
-            echo "  1. Download the UEFI image from artifacts"
-            echo "  2. Flash with: fastboot boot Mu-spacewar.img"
-            echo "  3. Check screen for debug messages"
-          else
-            echo "  BUILD FAILED — check the Build Logs artifact for details."
-            echo ""
-            echo "  COMMON FIXES:"
-            echo "  1. Check build_output.log for the first error"
-            echo "  2. Compare with upstream: UEFI/upstream_reference/"
-            echo "  3. Verify spacewarPkg files exist in Mu-Silicium"
-          fi
-          echo "============================================"
+        uses: actions/upload-artifact@v4
+        with:
+          name: Build-Logs-${{ github.run_number }}
+          path: build.log
+          retention-days: 7
