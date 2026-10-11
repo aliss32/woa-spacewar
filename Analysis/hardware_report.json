@@ -7,12 +7,12 @@
     "kernel": "5.4.x-mysellysenpai (CrDroid)",
     "generator": "analyze_hardware.py v4 \u2014 github-actions[bot]",
     "readable_url": "https://raw.githubusercontent.com/aliss32/woa-spacewar/main/Analysis/hardware_report.json",
-    "updated_at": "2026-10-04T04:32:01.419895Z",
+    "updated_at": "2026-10-11T04:16:01.489038Z",
     "source_commits": {
       "crdroid_device": "794133f",
       "kernel_dt": "a5ef406",
       "nothing_official": "6f027f0",
-      "lineage_device": "1210528",
+      "lineage_device": "02595ff",
       "np1_device": "91aa9a2",
       "halogenos_device": "22e7452"
     }
@@ -69,16 +69,16 @@
     ],
     "has_tfa9874": false,
     "pmic_chips": [
-      "qcom,pm7325b-gpio",
-      "qcom,pm8350-gpio",
       "qcom,pmk8350-gpio",
-      "qcom,pm7325b-spmi-wled",
-      "qcom,pm8350b-gpio",
-      "qcom,pmk8350-rtc",
-      "qcom,lcdb-pm7325b",
-      "qcom,pm7325-gpio",
       "qcom,pm8350c-flash-led",
-      "qcom,pm8350c-gpio"
+      "qcom,pm8350-gpio",
+      "qcom,pmk8350-rtc",
+      "qcom,pm7325b-spmi-wled",
+      "qcom,pm7325b-gpio",
+      "qcom,pm8350b-gpio",
+      "qcom,pm8350c-gpio",
+      "qcom,lcdb-pm7325b",
+      "qcom,pm7325-gpio"
     ],
     "nfc_ic": [
       "TODO"
@@ -120,16 +120,16 @@
       "TODO"
     ],
     "PMIC_CHIPS": [
-      "qcom,pm7325b-gpio",
-      "qcom,pm8350-gpio",
       "qcom,pmk8350-gpio",
-      "qcom,pm7325b-spmi-wled",
-      "qcom,pm8350b-gpio",
-      "qcom,pmk8350-rtc",
-      "qcom,lcdb-pm7325b",
-      "qcom,pm7325-gpio",
       "qcom,pm8350c-flash-led",
-      "qcom,pm8350c-gpio"
+      "qcom,pm8350-gpio",
+      "qcom,pmk8350-rtc",
+      "qcom,pm7325b-spmi-wled",
+      "qcom,pm7325b-gpio",
+      "qcom,pm8350b-gpio",
+      "qcom,pm8350c-gpio",
+      "qcom,lcdb-pm7325b",
+      "qcom,pm7325-gpio"
     ],
     "TOUCH_IC": [
       "TODO"
